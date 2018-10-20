@@ -49,12 +49,7 @@ Ciljevi ove platforme su:
 Pre nego što završim planirane stvari i izbacim kod na git, pre toga ćemo se naći jedan dan, da vam pokažem kako se pišu moduli i strategije, pa će svako od vas biti osposobljen
 da napiše modul i strategiju i pokrene na robotu.
 
-Ne preporučujem ti da gubiš vreme sam da proučavaš ceo kod, moraš razumeti zašto sam baš tako radio da bi lakše razumeo kod (jer sam dosta toga pravio kao prototip).
-
-Pišem ti sve ovo jer si rekao da ćeš pisati svoju platformu, ili si planirao da pišeš svoju. Pa ako si još za to, moraš smisliti pre toga ceo koncept u detalje i razmisliti o mogućim problemima koji bi se mogli pojaviti tokom korišćenja platforme. Ako ovde pogrešiš to posle će biti teže to ispraviti.
-
-Ja sam pisao svoju platformu jer je moj koncept mnogo divergirao u odnosu na Lukićev (razmišljao sam i da izmenim njegovu platformu, ali skontao sam da bi većinu toga trebao da menjam da implementiram moje ideje).
-Poenta ove priče je da ukoliko imaš neku ideju za platformu, prvo sve isplaniraš, pa kad dođem, nemoj samostalno da je praviš bez konsultacije da ne bi ponavljao iste greške i da ne bi napravio sličnu stvar i time bacio vreme. Takođe možeš svoju ideju implementirati u moju platformu kad budem postavio na git.
+Ne preporučujem da gubiš vreme sam da proučavaš ceo kod, moraš razumeti zašto sam baš tako radio da bi lakše razumeo kod (jer sam dosta toga pravio kao prototip).
 
 Po mom mišljenju platforma je ok, sve što bi vi trebali da radite, je da programirate module u pythonu, c++-u ili kao zasebnu aplikaciju (po principu ROS-a): moguće je lako ostvariti komunikaciju sa platformom
 
