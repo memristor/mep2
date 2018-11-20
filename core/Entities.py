@@ -1,6 +1,5 @@
 from .Util import *
 import time
-gcore = None
 class EntityPoint:
 	def __init__(self, entity_type, entity_name, point, polygon, duration):
 		self.type = entity_type
@@ -24,18 +23,16 @@ class EntityPoint:
 		
 	def refresh(self, polygon=None, point=None):
 		self.recreate(polygon, point)
-		gcore.entities.on_refresh_entity(self)
+		_core.entities.on_refresh_entity(self)
 		
 class Entities:
-	def __init__(self,core):
-		global gcore
+	def __init__(self):
 		self.entities = []
 		self.on_new_entity = Event()
 		self.on_refresh_entity = Event()
 		self.on_remove_entity = Event()
 		self.time = time.time()
 		self.last_id = 0
-		gcore = core
 		
 	def add_entity(self, entity_type, entity_name, polygon, point=None, duration=0):
 		#  if not point:
@@ -93,6 +90,9 @@ class Entities:
 	def get_entities_in_rect(self, rect):
 		return [i for i in self.entities if is_in_rect(i.point, rect)]
 		
+	def get_entities_in_line(self, p1, p2):
+		pass
+		
 	def time_diff(self):
 		t = time.time()
 		past = self.time
@@ -108,11 +108,9 @@ class Entities:
 	def refresh(self):
 		to_remove = []
 		dt = self.time_diff()
-		for ent in self.entities:
+		
+		for ent in list(self.entities):
 			if ent.duration > 0:
 				ent.duration -= dt
 				if ent.duration <= 0:
-					to_remove.append(ent)
-		for i in to_remove:
-			#  print('removing ent',i)
-			self.remove_entity(i)
+					self.remove_entity(ent)

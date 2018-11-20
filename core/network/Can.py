@@ -47,14 +47,6 @@ class Can:
 	def set_addr(self, a):
 		self.addr = a
 		
-	# def raw(self,_addr,f,val):
-		# ''' f, val '''
-		# frame = self._build_can_frame(_addr, struct.pack(f, *val))
-		# self.s.send(frame)
-		
-	# def graw(self):
-		# frame = self._dissect_can_frame(self.s.recv(16))
-		
 	def send(self, binary, addr=None):
 		if addr == None:
 			addr = self.addr
@@ -63,20 +55,10 @@ class Can:
 		
 	async def read(self):
 		while True:
-			#  await asyncio.sleep(2)
-			#  print('can tick')
 			frame = self._dissect_can_frame(await self.loop.sock_recv(self.s, 16))
-			#  print(frame)
 			for i in self.packet_streams:
 				if i.recv != None and (i.addr == None or (i.addr != None and frame[0] == i.addr)):
 					i.recv(frame[2])
-	
-	# don't use this directly
-	def run_async(s):
-		loop = asyncio.get_event_loop()
-		s.loop = loop
-		loop.run_until_complete(s.read())
-	
 	
 	def run(self):
 		asyncio.ensure_future(self.read())

@@ -1,6 +1,5 @@
 import asyncio, socket
 from .packet.PacketStream import PacketStream
-from core.Util import asyn
 
 		
 class TcpClient(asyncio.Protocol):
@@ -16,7 +15,7 @@ class TcpClient(asyncio.Protocol):
 		self.client_tcp = None
 		self.transport = None
 	
-	@asyn
+	@_core.module_cmd
 	def wait_client(self):
 		pass
 	
@@ -33,12 +32,10 @@ class TcpClient(asyncio.Protocol):
 		
 		
 	async def connect(self):
-		print('server listening')
 		try:
 			_,_ = await self.core.loop.create_connection(lambda: self, self.ip, self.port)
 		except:
 			print('failed to connect to server')
-			#  raise
 		
 		print('client connected')
 		if self.future != None:
@@ -49,14 +46,12 @@ class TcpClient(asyncio.Protocol):
 		asyncio.ensure_future(self.connect())
 		
 	def connection_made(self, transport):
-		print('connection made')
 		self.transport = transport
 		
 	def data_received(self, data):
 		for i in self.packet_streams:
 			if i.recv:
 				i.recv(data)
-		# print('tcp client data received: {}'.format(data.decode()))
 
 	def send(self, data):
 		if self.transport:

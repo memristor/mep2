@@ -29,7 +29,6 @@ class Emitter:
 		s.listeners=[]
 		s.event_manager = event_manager
 	
-	## private: don't use directly
 	def _on_new_listener(s, listener):
 		s.listeners.append(listener)
 		s.on_new_listener(listener)
@@ -38,7 +37,6 @@ class Emitter:
 		#  if listener in s.listeners:
 		s.listeners.remove(listener)
 		s.on_lose_listener(listener)
-	##
 	
 	def on_new_listener(s, listener):
 		pass
@@ -75,7 +73,7 @@ class ServiceManager(Emitter):
 	# public:
 	def listen(s, evt_name, callback, *args, **kwargs):
 		emitter = s._find_emitter(evt_name)
-		print('adding listener', evt_name)
+		# print('adding listener', evt_name)
 		l = Listener(evt_name, callback, emitter, args, kwargs)
 		#  if emitter != None:
 		emitter._on_new_listener(l)
@@ -92,8 +90,7 @@ class ServiceManager(Emitter):
 		#  else:
 			#  s.unbound_listeners.append(l)
 		return l
-		
-	# should i use?
+	
 	def emit(s, evt_name, *params):
 		for l in s.listeners:
 			if l.evt_name == evt_name:
@@ -111,7 +108,7 @@ class ServiceManager(Emitter):
 			service = Emitter
 		e = service(evt_name, s)
 		
-		e.listeners += [x for x in s.listeners if x.evt_name == evt_name]
+		e.listeners   += [x for x in s.listeners if x.evt_name == evt_name]
 		s.listeners[:] = [x for x in s.listeners if x.evt_name != evt_name]
 		
 		s.emitters.append(e)

@@ -20,24 +20,17 @@ class Sensors:
 	# relative position is:
 	#  ^
 	#  y
-	#  |
-	# ROBOT> -x->
-	#
-	#  def add_sensor_data(self, sensor_name, point, duration=100):
-		#  p = SensorPoint(sensor_name, point, duration)
-		#  abs_pos = list(map(add, rot_vec_deg(p.rel_point, self.core.angle), self.core.position))
-		#  p.abs_point = self.core.transform.transform(abs_pos)
-		#  self.sensor_data.append( p )
-		#  self.on_new_point(p)
-		
-	
+	# ROBOT-x->
+	# robot is looking in positive X axis direction
 	def add_sensor_point(self, sensor_type, sensor_name, rel_start, rel_end, duration=100):
 		p = SensorPoint(sensor_type, sensor_name, rel_start, rel_end, duration)
-		abs1 = list(map(add, self.core.position, rel_start))
-		abs2 = list(map(add, rot_vec_deg(p.rel2, self.core.angle), self.core.position))
-		p.abs1 = self.core.transform.transform(abs1)
-		p.abs2 = self.core.transform.transform(abs2)
-		#print(p.abs2)
+		pos=_core.get_position()
+		pt=pos[:2]
+		o=pos[2]
+		abs1 = add_pt(pt, rel_start)
+		abs2 = add_pt(rot_vec_deg(p.rel2, o), pt)
+		p.abs1 = _core.transform.transform(abs1)
+		p.abs2 = _core.transform.transform(abs2)
 		if not is_in_rect(p.abs2, [-1500, -1000, 3000, 2000]):
 			return
 		self.sensor_data.append(p)

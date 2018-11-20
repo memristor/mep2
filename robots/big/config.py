@@ -1,103 +1,64 @@
-from core.Core import *
 from core.Util import *
 from core.schedulers.BasicScheduler import *
-from modules.drivers.motion.Motion import *
-from modules.sensors.BinaryInfrared import *
 
-from modules.sensors.Lidar import *
-from modules.processors.LidarProcessor import *
-
-from modules.services.CollisionDetector import *
 from core.network.Can import *
 from core.network.Uart import *
 from core.network.TcpClient import *
 from core.network.TcpServer import *
 from core.network.packet.SimplePacket import *
-from modules.sensors.Activator import *
-from modules.services.ShareService import *
-import core.State as State
-from modules.drivers.Servo import *
 from core.network.Splitter import *
 
+from modules.services.CollisionDetector import *
+from modules.sensors.Activator import *
+from modules.services.ShareService import *
+from modules.drivers.Servo import *
+
+from modules.drivers.motion.Motion import *
+from modules.sensors.BinaryInfrared import *
+from modules.sensors.Lidar import *
+from modules.processors.LidarProcessor import *
+
 from .Actuator import Actuator
-
-
-print('robot configured')
 
 #  sim = False
 sim = True
 
-core = Core()
-core.set_robot_size(300,300)
+_core.set_robot_size(300,300)
 
-### communication
-if sim:
-	can = Can('can1')
-else:
-	can = Can()
-
-core.add_module(can)
-
-if not sim:
-	uart = Uart()
-else:
-	uart = can
-ps = uart.get_packet_stream()
-core.add_module(uart)
+### CAN and Uart Communication
+can = Can() if not sim else Can('can_big')
+_core.add_module(can)
+uart = Uart() if not sim else can
 ###
 
-
 ###### Motion driver ###
-motion = Motion()
-motion.set_packet_stream(can.get_packet_stream(0x80000000 | 600))
-core.add_module(motion)
-core.export_ns('r')
-motion.export_cmds()
-core.export_ns('')
+motion = Motion(packet_stream=can.get_packet_stream(0x80000258))
+motion.export_cmds('r')
+_core.add_module(motion)
 ######################
 
-sched = BasicScheduler()
-core.task_manager.set_scheduler(sched)
-
-col = CollisionDetector(1, size=[-1500, -1000, 3000, 2000])
-core.add_module(col)
-
+_core.task_manager.set_scheduler( BasicScheduler() )
+_core.add_module( CollisionDetector(wait_time=1, size=[-1500, -1000, 3000, 2000]) )
 
 ####### Chinch ##################
 activator = Activator('pin activator', packet_stream=can.get_packet_stream(0x80008d11))
-core.add_module(activator)
-core.export_ns('')
-core.export_cmd('chinch', activator.wait_activator)
+_core.add_module(activator)
+_core.export_cmd('chinch', activator.wait_activator)
 #################################
 
 ##### Infrared ####
-ir1 = BinaryInfrared('back middle', (0,0), (-500,0))
-ir1.set_packet_stream(can.get_packet_stream(0x80008d12))
-core.add_module(ir1)
-
-ir2 = BinaryInfrared('back left', (0,0), (-500,0))
-ir2.set_packet_stream(can.get_packet_stream(0x80008d16))
-core.add_module(ir2)
-
-#  ir5 = BinaryInfrared('back corner', (0,0), (-500,0))
-#  ir5.set_packet_stream(can.get_packet_stream(0x80008d15))
-#  core.add_module(ir5)
-cube_det = BinaryInfrared('block detection', (0,0), (0,0))
-cube_det.set_packet_stream(can.get_packet_stream(0x80008d15))
-
-ir3 = BinaryInfrared('front1', (0,0), (500,0))
-ir3.set_packet_stream(can.get_packet_stream(0x80008d14))
-core.add_module(ir3)
-
-ir4 = BinaryInfrared('front2', (0,0), (500,0))
-ir4.set_packet_stream(can.get_packet_stream(0x80008d13))
-core.add_module(ir4)
+ir1 = BinaryInfrared('back middle', (0,0), (-500,0), packet_stream=can.get_packet_stream(0x80008d12))
+ir2 = BinaryInfrared('back left', (0,0), (-500,0), packet_stream=can.get_packet_stream(0x80008d16))
+ir3 = BinaryInfrared('front1', (0,0), (500,0), packet_stream=can.get_packet_stream(0x80008d14))
+ir4 = BinaryInfrared('front2', (0,0), (500,0), packet_stream=can.get_packet_stream(0x80008d13))
+_core.add_module([ir1,ir2,ir3,ir4])
+cube_det = BinaryInfrared('block detection', (0,0), (0,0), packet_stream=can.get_packet_stream(0x80008d15))
 ##################
 
 ####### CAMERA ######
 cam_cols = ['yellow', 'green', 'black', 'blue', 'orange']
 cam_tcp = TcpServer(name='camera tcp server', port=5000)
-core.add_module(cam_tcp)
+_core.add_module(cam_tcp)
 
 cam_ps = SimplePacket(5, cam_tcp.get_packet_stream())
 State.camera = False
@@ -106,107 +67,77 @@ def on_cam_recv(pkt):
 	cols = [cam_cols[int(i)] for i in d.split(',')]
 	State.camera = True
 	State.combination = cols
-	print('camera:',cols)
+	print('camera:', cols)
 
 cam_ps.recv = on_cam_recv
 #############################
-
-
-
-@asyn2
-def pump(x, v):
-	if x == 0:
-		can.send(bytes([v,v,v,0,v]), 0x6c10+x)
-	else:
-		can.send(bytes([v]), 0x6c10+x)
-core.export_ns('')
-core.export_cmd('pump', pump)
 
 ####### LCD driver #######
 if not sim:
 	from modules.drivers.LCD import LCD
 	lcd=LCD()
-	core.add_module(lcd)
-State.points = 0
-State.small_points = 0
-@do
-def addpts(e,pts):
-	print('\x1b[31mgot ',pts, 'points\x1b[0m')
-	State.points += pts
-	print('current points', State.points, State.small_points, State.points + State.small_points)
+	_core.add_module(lcd)
+State.points = _State(0)
+State.small_points = _State(0)
+
+@_core.do
+def addpts(pts):
+	print(col.red,'got ',pts, 'points',col.white)
+	State.points.val += pts
+	print('current points', State.points.val, State.small_points.val, State.points.val + State.small_points.val)
 	if not sim:
-		lcd.show_pts(State.points + State.small_points)
-core.add_sync_cmd('addpts', addpts)
+		lcd.show_pts(State.points.val + State.small_points.val)
+_core.export_cmd('addpts', addpts)
 ##########################
 
 ######## SHARE SERVICE ######
 tcp = TcpServer(port=3000)
-core.add_module(tcp)
 share = ShareService(packet_stream=tcp.get_packet_stream())
-core.add_module(share)
 share.export_cmds()
+_core.add_module([tcp, share])
 def share_state_change(name, new_val):
-	if name == 'points':
-		print('received points from small',share.get_state('points'), new_val)
-		print('\x1b[31msmall ', new_val, 'points\x1b[0m')
-		State.small_points += new_val
-		print('current points', State.points, State.small_points, State.points + State.small_points)
+	if name == 'small_points':
+		print('received points from small', share.get_state('small_points'), new_val)
+		print(col.red,'small ', new_val, 'points',col.white)
+		State.small_points = new_val
+		print('current points', State.points.val, State.small_points.val, State.points.val + State.small_points.val)
 		if not sim:
-			lcd.show_pts(State.points + State.small_points)
+			lcd.show_pts(State.points.val + State.small_points.val)
 
 share.on_state_change.append(share_state_change)
 #############################
 
 ######## STATIC OBSTACLES #######
-core.entities.add_entity('static','big_terrain_obstacle',polygon_from_rect([-600,1000-260,1200,260]))
-kocke = [[650, -460], [1200, 190], [400, 500], [-650, -460], [-1200, 190], [-400, 500]]
+_core.entities.add_entity('static','big_terrain_obstacle',polygon_from_rect([-600,1000-260,1200,260]))
+cube_obstacles = [[650, -460], [1200, 190], [400, 500], [-650, -460], [-1200, 190], [-400, 500]]
 
-for i,v in enumerate(kocke):
-	core.entities.add_entity('static','k'+str(i+1),polygon_square_around_point(v, 58*3))
+for i,v in enumerate(cube_obstacles):
+	_core.entities.add_entity('static','k'+str(i+1),polygon_square_around_point(v, 58*3))
 
-core.entities.add_entity('static','pole1' ,polygon_square_around_point([1500-80, 860-1000],100), point=[1500-80, 860-1000])
-core.entities.add_entity('static','pole2' ,polygon_square_around_point([-(1500-80), 860-1000],100), point=[-(1500-80), 860-1000])
-core.entities.add_entity('static','pole3' ,polygon_square_around_point([(1500-600), 1000-60],100), point=[1500-600, 1000-60])
-core.entities.add_entity('static','pole4' ,polygon_square_around_point([-(1500-600), 1000-60],100), point=[-(1500-600), 1000-60])
+poles=[ [1500-80, 860-1000], [-(1500-80), 860-1000], [(1500-600), 1000-60], [-(1500-600), 1000-60] ]
+for i,v in enumerate(poles):
+	_core.entities.add_entity('static','pole'+str(i), polygon_square_around_point(v,100), point=v)
 #################################
 
-
-
 ##### Actuator ###
+@_core.do
+def pump(x, v):
+	can.send(bytes([v,v,v,0,v]), 0x6c10) if x == 0 else can.send(bytes([v]), 0x6c10+x)
+
+_core.export_cmd('pump', pump)
+
 act = Actuator(uart.get_packet_stream(), sim=sim)
-core.add_module(act)
+_core.add_module(act)
 act.export_cmds()
 ##################
 
+_core.export_cmd('cube_detected', lambda: cube_det.detected)
 
-
-e=core.get_exported_commands()
-
-core.export_ns('')
-def build_cubes(color):
-	with e.disabler('collision'):
-		for i in enumerate(color):
-			e.lift(max(1, i[0]))
-			e.unload(i[1],i[0] == 0)
-		e.lift(3)
-		e.unload(e.get_remaining_pump(color))
-core.add_sync_cmd('build_cubes', build_cubes)
-
-def cube_detection():
-	return cube_det.detected
-	
-core.add_sync_cmd('cube_detected', cube_detection)
-
-e=core.get_exported_commands()
-    
-
-
-
-
+e=_core.get_exported_commands()
 
 ######### BIG pathfind ########
-@do
-def pathfind(e, x,y,o=1):
+@_core.do
+def pathfind(x,y,o=1):
 	path = pathfinder.pathfind([x,y])
 	path = pathfinder.fix_path(path)
 	if not path:
@@ -214,12 +145,10 @@ def pathfind(e, x,y,o=1):
 		e._task_suspend()
 	else:
 		print('pathfinding: ', path)
-	#  e.r.speed(80)
 	for i in path:
 		e.r.goto(*i,o)
-		
-core.export_ns('')
-core.add_sync_cmd('pathfind', pathfind)
+
+_core.export_cmd('pathfind', pathfind)
 ###############################
 
 future=None
@@ -227,7 +156,7 @@ state=0
 def default_cmds():
 	def on_collision(msg):
 		global state, future
-		print('\x1b[33mon collision\x1b[0m')
+		print(col.yellow, 'on collision', col.white)
 		if state == 0 and msg == 'danger':
 			print('got collision')
 			state = 1
@@ -247,9 +176,8 @@ def default_cmds():
 		e.sleep(2)
 		e._next_cmd()
 	#e._listen('stuck', rep)
-	
-#  core.on('stuck', stuck_behavior)
-core.set_task_setup_func(default_cmds)
+#  _core.on('stuck', stuck_behavior)
+_core.set_task_setup_func(default_cmds)
 
 ###### TIMER #####
 async def timer_task():
@@ -258,15 +186,13 @@ async def timer_task():
 		await asyncio.sleep(1)
 		time+=1
 		print('time', time)
-		if not core.task_manager.current_task:
+		if not _core.task_manager.current_task:
 			print('no more tasks')
 	print('round has ended')
-	#  motion.fullstop()
-	#  act.fullstop()
-	core.fullstop()
+	_core.fullstop()
 
-@do
-def start_timer(e):
+@_core.do
+def start_timer():
 	asyncio.ensure_future(timer_task())
 ##################
 
@@ -291,20 +217,19 @@ def init_task():
 	#  e.sleep(10)
 	
 	if not sim:
-		# e.prepare_lift()
-		e._do(lambda: print('initialized'))
-		e._do(act.initialize)
-	
-		e._do(lambda: print('rot'))
+		e.prepare_lift()
+		e._print('initialized')
+		act.initialize()
+		e._print('rot')
 		e.rotate(0)
-		e._do(lambda: print('ready'))
+		e._print('ready')
 		e.chinch()
 	else:
 		e.sleep(3)
 	#  e.sleep(10)
 	e.send_msg('small_go')
-	e._do(lambda: print('started'))
+	e._print('started')
 	#  e.sleep(100)
 	start_timer()
 
-core.task_manager.set_init_task(init_task)
+_core.set_init_task(init_task)

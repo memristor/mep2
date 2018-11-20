@@ -1,68 +1,83 @@
-import signal
-import importlib
-import os, sys
+
 import asyncio
+from .Util import Transform, rot_vec_deg, mul_pt, col, pick
+import functools
+class Core():
+	def __init__(self, robot):
+		self.robot=robot
+		self.quit = False
+		
+		import builtins
+		# check if its already initialized anywhere
+		builtin_core = '_core'
+		if builtin_core in builtins.__dict__:
+			return
+		# core instance is available everywhere in whole python environment
+		builtins.__dict__[builtin_core] = self
+		# builtins.__dict__['Core'] = self
 
-import core.State
-
-from .Sensors import *
-from .Entities import *
-from .Util import Singleton, Transform, rot_vec_deg, mul_pt_s
-from .TaskManager import TaskManager
-from .ServiceManager import ServiceManager
-from .Introspection import Introspection
-
-
-class Core(metaclass=Singleton):
-	def __init__(self, robot_name=None):
+		from .Sensors import Sensors
+		from .Entities import Entities
+		from .ServiceManager import ServiceManager
+		from .Introspection import Introspection
+		from .TaskManager import TaskManager
+		
 		self.service_manager = ServiceManager()
-		self.task_manager = TaskManager(self)
-		self.entities = Entities(self)
 		self.sensors = Sensors()
-		self.sensors.core = self
+		self.entities = Entities()
+		self.task_manager = TaskManager()
+		
 		self.state = {'direction':1, 'state':'I'}
 		self.modules = []
 		self.transform = Transform(([0,0],0),([0,0],0))
-		self.position = [0,0] # robot position
-		self.angle = 0 # robot angle
-		self.task_setup_func = None
+		
 		self.sync_cmds = {}
-		core.State.core = self
-		self.quit = False
 		self.robot_size = [200,100]
 		
-		# unused
-		self.default_listeners = []
-		
 		self.introspection = Introspection()
-		self.introspection.core = self
 		self.introspection.run()
 		
 		self._export_ns = ''
-		if robot_name == None:
-			raise Exception('must set robot name')
-		self.robot=robot_name
 
-		self.get_exported_commands = self.task_manager.get_exported_commands
 		self.exported_cmds={'':{}}
 		self.export_cmds()
+		builtins.__dict__['_e'] = type('',(),{})
+		
+		# forward funcs from task_manager for convenience
+		self.get_exported_commands = self.task_manager.get_exported_commands
+		self.set_task_setup_func = self.task_manager.set_task_setup_func
+		self.task_setup_func = self.task_manager.set_task_setup_func
+		self.set_init_task = self.task_manager.set_init_task
+		self.init_task = self.task_manager.set_init_task
+		self.has_task = self.task_manager.has_task
+		self.set_task = self.task_manager.set_task
+		
+		self.task_manager.init_sync_funcs()
+		
+		from core.State import StateBase, State, _State
+		self.position = StateBase(value=[0,0]) # robot position
+		self.angle = StateBase(value=0) # robot angle
+		builtins.__dict__['State'] = State
+		builtins.__dict__['_State'] = _State
+		import core.Task
+		core.Task.StateBase = StateBase
 	
 	def set_position(self, x,y,o):
-		self.position = [x,y]
-		self.angle = o
-		
-	def look_vector(self):
-		return rot_vec_deg([1,0], self.angle)
-		
-	def move_dir_vector(self):
-		return mul_pt_s( rot_vec_deg([1,0], self.angle), self.state['direction'] )
+		self.position.set([x,y])
+		self.angle.set(o)
 	
-	def add_sync_cmd(self, name, func):
-		self.sync_cmds[name] = func
+	def look_vector(self):
+		return rot_vec_deg([1,0], self.get_position()[2])
+	
+	def move_dir_vector(self):
+		return mul_pt( self.look_vector(), self.state['direction'] )
 	
 	def add_module(self, module):
+		if type(module) == list:
+			for i in module:
+				self.add_module(i)
+			return
 		if module not in self.modules:
-			module.core = self
 			self.modules.append(module)
 		
 	def get_module_names(self):
@@ -72,7 +87,10 @@ class Core(metaclass=Singleton):
 		return self.modules
 		
 	def load_strategy(self, strategy_name):
-		self.task_manager.load_tasks(self.robot, strategy_name)
+		tm = self.task_manager
+		tm.load_tasks(self.robot, strategy_name)
+		tm.setup_init_task()
+		tm.set_task('init')
 		
 	def fullstop(self):
 		for module in self.modules:
@@ -81,74 +99,69 @@ class Core(metaclass=Singleton):
 		self.task_manager.fullstop()
 		self.quit = True
 	
-	def export_cmd(self, cmd, func):
-		if cmd in self.exported_cmds:
-			raise 'command must be overriden'
-		else:
-			ns = self._export_ns
+	def export_ns(self, ns=None):
+		if ns == None: return self._export_ns
+		self._export_ns = ns
+		
+	def export_cmd(self, cmd, func=None):
+		ns = self._export_ns
+		if not func:
+			if type(cmd) == str:
+				def wrapper(f):
+					self.export_cmd(cmd, f)
+					return f
+				return wrapper
+			else:
+				cmd,func=cmd.__name__,cmd
+		co = func.__code__
+		func_args = co.co_varnames[:co.co_argcount+co.co_kwonlyargcount]
+		if '_future' in func_args:
 			if ns not in self.exported_cmds:
 				self.exported_cmds[ns] = {}
 			self.exported_cmds[ns][cmd] = func
-			
-	def export_ns(self, ns):
-		self._export_ns = ns
-			
-	def sleep_cmd(self,s,future=None):
-		def stop_waiting():
-			#  print('done waiting')
-			future.set_result(1)
-		#  print('sleepcmd', s,future)
-		self.loop.call_later(s, stop_waiting)
-		
+		else:
+			self.sync_cmds[cmd] = func
+	
 	def export_cmds(self):
-		self.export_cmd('sleep', self.sleep_cmd)
+		def sleep_cmd(s,_sim=False,_future=None):
+			if _sim: return s
+			self.loop.call_later(s, lambda: _future.set_result(1))
+		self.export_cmd('sleep', sleep_cmd)
 		
 	def get_position(self):
-		pass	
+		return self.position.get() + [self.angle.get()]
 	
-	def override_cmd(self, cmd, func):
-		ns = self._export_ns
-		if ns not in self.exported_cmds:
-			self.exported_cmds[ns] = {}
-		self.exported_cmds[ns][cmd] = func
-		
-	def set_task_setup_func(self, func):
-		self.task_setup_func = func
+	def get_vector(self):
+		pass
 	
 	def set_robot_size(self, x,y):
 		self.robot_size = [x,y]
 	
 	def load_config(self):
+		import os, sys, importlib
 		conf_dir = 'robots/' + self.robot
 		sys.dont_write_bytecode = True
 		for i in os.listdir(conf_dir):
 			fullpathname = os.path.join(conf_dir, i)
 			if os.path.isfile(fullpathname):
-				if fullpathname.endswith('.py'):
-					print(fullpathname, i)
-				
-					#  t = tasks_dir + '.' + i[:-3]
-					print('loading config for robot: [\x1b[32m', self.robot, '\x1b[0m]')
-					#  filename = i[:-3]
-					config_module = importlib.import_module(fullpathname[:-3].replace('/','.'))
+				if fullpathname.endswith('config.py'):
+					print('loading config for robot: ['+col.green, self.robot, col.white+']')
+					config_filename = fullpathname[:-3].replace('/','.')
+					config_module = importlib.import_module(config_filename)
 					
-					#  print('loading task: ', filename)
-					#  self.tasks.append(TaskContext(filename, task))
+		print('loaded modules:', '\n\t' + '\n\t'.join([col.yellow + x.name + col.white + ' : class ' + type(x).__name__ for x in self.get_modules()]))
 	
 	async def main_loop(self):
 		while not self.quit:
-			await asyncio.sleep(0.005)
-			#  print('tick')
-			#  self.service_manager.emit('tick')
+			await asyncio.sleep(0.001)
 			self.task_manager.run_cycle()
 	
 	## runs main_loop
 	def run(self):
-		
 		def on_interrupt(a,b):
-			#  self.stop()
-			# motion.stop
 			exit(0)
+		
+		import signal
 		signal.signal(signal.SIGINT, on_interrupt)
 		
 		self.loop = asyncio.get_event_loop()
@@ -157,20 +170,35 @@ class Core(metaclass=Singleton):
 		for i in self.modules:
 			i.core = self
 			if hasattr(i, 'run'):
+				# print('running',i.name)
 				i.run()
-			
 		# run main loop
 		self.loop.run_until_complete(self.main_loop())
+	
+	# decorators
+	def do(self, f):
+		self.get_exported_commands()
+		@functools.wraps(f)
+		def wrapper(*args, **kwargs):
+			return _e._do(f, *args, **kwargs)
+		return wrapper
 
-def do(f):
-	e=Core().get_exported_commands()
-	def wrapper(*args, **kwargs):
-		return e._do(f, e, *args, **kwargs)
-	return wrapper
-	
-def func(f):
-	e=Core().get_exported_commands()
-	def wrapper(*args, **kwargs):
-		return f(e, *args, **kwargs)
-	return wrapper
-	
+	def asyn2(s,f):
+		@functools.wraps(f)
+		def wrapper(*args, _future=None, **kwargs):
+			ret=f(*args, **kwargs)
+			if _future: _future.set_result(ret)
+			return ret
+		return wrapper
+		
+	def module_cmd(s,f):
+		@functools.wraps(f)
+		def wrapper(*args, _future=None, **kwargs):
+			# set future to class instance
+			cls = args[0]
+			cls.future = _future
+			if cls.future:
+				import time
+				cls.future.time = time.monotonic()
+			return f(*args, **kwargs)
+		return wrapper

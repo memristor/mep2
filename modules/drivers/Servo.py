@@ -40,7 +40,6 @@ class Servo:
 		self.ps = ps
 	
 	def action(self, f, val=None):
-			
 		if f not in servo_commands:        
 			print('function ' + f + ' doesn\'t exist')
 			return
@@ -89,17 +88,3 @@ class Servo:
 					#  print(hex(frame[0]), Can.nice_hex(frame[2]))
 					#  return
 						
-	def listServoCmds():
-		print('Servo commands:')
-		for i in sorted(servo_commands):
-			print('\t' + i)
-
-	def listServo():
-		print('Servo list:')
-		for i in sorted(robot_servos):
-			print('\t' + i)
-
-	def listActuators():
-		print('Actuators, Sensors:')
-		for i in sorted(robot_byte_act):
-			print('\t' + i)

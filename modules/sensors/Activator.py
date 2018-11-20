@@ -1,5 +1,3 @@
-from core.Util import asyn
-from operator import add
 import asyncio
 class Activator:
 	def __init__(self, name, packet_stream=None):
@@ -9,10 +7,9 @@ class Activator:
 		if packet_stream:
 			self.set_packet_stream(packet_stream)
 			
-	@asyn
+	@_core.module_cmd
 	def wait_activator(self):
 		print('waiting for activator')
-		pass
 		
 	def on_recv(self, pkt):
 		if self.future and pkt[0] == 0:

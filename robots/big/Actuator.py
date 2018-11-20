@@ -1,19 +1,15 @@
-from core.Util import asyn
-from core.Core import Core
 from modules.drivers.motion.Motion import Motion
 from core.network.Splitter import *
 import time
 class Actuator:
-	def __init__(self,ps,sim=False):
+	def __init__(self,packet_stream=None,sim=False):
 		self.name = 'big-actuator'
 		self.l2 = 34768
 		self.lift_max=1260000
-		self.motion = Motion()
-		Core().add_module(self.motion)
-		spl=Splitter(ps)
-		a=spl.get()
-		self.motion.set_packet_stream(spl.get())
-		a.recv = self.on_recv
+		spl=Splitter(packet_stream)
+		self.motion = Motion(packet_stream=spl.get())
+		_core.add_module(self.motion)
+		spl.get().recv=self.on_recv
 		self.min_time = 0.0
 		self.sim = sim
 		self.rot_pos = 2
@@ -42,34 +38,26 @@ class Actuator:
 			self.lift_future = None
 			print('lift done')
 	
-	def export_cmds(self):
-		self.core.export_ns('a')
-		self.core.export_cmd('lift', self.lift)
-		self.core.export_cmd('rotate', self.rotate)
-		self.core.export_cmd('lift_sw', self.lift_sw)
+	def export_cmds(self, namespace=''):
+		_core.export_ns('a')
+		_core.export_cmd('rotate', self.rotate)
+		_core.export_ns(namespace)
+		_core.export_cmd('lift', self.lift)
+		_core.export_cmd('lift_sw', self.lift_sw)
 		
-		e=self.core.get_exported_commands()
+		e=_core.get_exported_commands()
 		
 		def rotate(x):
 			if not self.sim:
 				e.a.rotate(x)
 			e.sleep(0.2)
-		def lift(x):
-			if not self.sim:
-				e.a.lift(x)
-			#  e.sleep(0.05)
-		def lift_sw():
-			if not self.sim:
-				e.a.lift_sw()
-		self.core.export_ns('')
-		self.core.add_sync_cmd('rotate', rotate)
-		self.core.add_sync_cmd('lift', lift)
-		self.core.add_sync_cmd('lift_sw', lift_sw)
-		self.core.export_cmd('prepare_lift', self.prepare_lift)
-		e=self.core.get_exported_commands()
+				
+		_core.export_cmd('rotate', rotate)
+		_core.export_cmd('prepare_lift', self.prepare_lift)
+		
+		e=_core.get_exported_commands()
 		
 		def unload(n, first=False):
-			
 			if n == 1:
 				e.r.forward(58)
 				if first:
@@ -95,13 +83,7 @@ class Actuator:
 				e.pump(5,0)
 			if first:
 				e.lift(1)
-				
-			#  if State.camera:
-				#  e.addpts(40/4)
-			#  else:
-				#  e.addpts(
 			
-				
 		colors=['green','blue','orange','black']
 		def check_side(side, combination):
 			global colors
@@ -122,13 +104,11 @@ class Actuator:
 		def get_pump_order(combination):
 			global colors
 			rot=get_side(combination)
-			print(rot)
 			c=[colors[rot-1], colors[rot], colors[(rot+1)%4]]
-			print(c)
 			pumps=[2,4,3]
 			return [pumps[c.index(i)] for i in combination]
 
-		def get(col,combination):
+		def get(col, combination):
 			global colors
 			colors=col
 			print(col,combination)
@@ -147,11 +127,31 @@ class Actuator:
 				return (get_side(combination), get_pump_order(combination))
 		def get_remaining_pump(p):
 			return next(i for i in (set(range(1,5))-set(p)))
+		
+		def pick():
+			_e.lift(0)
+			_e.pump(0,1)
+			_e.sleep(0.2)
+			_e.lift(1)
+			
+		_core.export_ns(namespace)
+		_core.export_cmd('unload', unload)
+		_core.export_cmd('get', get)
+		_core.export_cmd('get_remaining_pump', get_remaining_pump)
+		_core.export_cmd('pick', pick)
+		
+		e=_core.get_exported_commands()
+		
+		def build_cubes(color):
+			with e.disabler('collision'):
+				for i in enumerate(color):
+					e.lift(max(1, i[0]))
+					e.unload(i[1],i[0] == 0)
+				e.lift(3)
+				e.unload(e.get_remaining_pump(color))
 
-		self.core.export_ns('')
-		self.core.add_sync_cmd('unload', unload)
-		self.core.add_sync_cmd('get', get)
-		self.core.add_sync_cmd('get_remaining_pump', get_remaining_pump)
+		
+		_core.export_cmd('build_cubes', build_cubes)
 		
 		
 	def initialize(self):
@@ -178,31 +178,34 @@ class Actuator:
 		self.motion.conf_set('speed2', 35)
 		self.motion.conf_set('linear_mode',1)
 	
-	def prepare_lift(self,future):
-		self.ready_future = future
+	def prepare_lift(self,_future):
+		self.ready_future = _future
 		self.motion.send(b'-')
 		
-	def rotate(self, x, future=None):
+	def rotate(self, x, _future=None):
 		if self.rot_pos == x:
-			future.set_result(1)
+			_future.set_result(1)
 			return
 		print('rot start')
 		self.rot_pos = x
-		self.rot_future = future
+		self.rot_future = _future
 		self.motion.conf_set('setpoint2', (self.l2/2) * (3-x))
 	
-	def lift(self,x,future=None):
-		if self.lift_pos == x:
-			future.set_result(1)
+	def lift(self,x,_future):
+		if self.sim or self.lift_pos == x:
+			_future.set_result(1)
 			return
 		print('lift start')	
 		self.lift_pos = x
-		self.lift_future = future
+		self.lift_future = _future
 		self.motion.conf_set('setpoint1', -x*390480 - (47000 if x != 0 else 0))
 	
-	def lift_sw(self,future=None):
+	def lift_sw(self,_future=None):
+		if self.sim:
+			_future.set_result(1)
+			return
 		print('lift start')	
-		self.lift_future = future
+		self.lift_future = _future
 		self.motion.conf_set('setpoint1', -300000)
 	
 	def fullstop(self):

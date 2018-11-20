@@ -1,4 +1,3 @@
-import core.State as State
 weight=5
 def run():
 	
@@ -19,10 +18,7 @@ def run():
 	
 	with disabler('collision'):
 		r.goto(1190, 250) # r.goto(150,-1100) r.goto(1190+15,250)
-		lift(0)
-		pump(0,1)
-		sleep(0.5)
-		lift(1)
+		pick()
 		
 	r.speed(130)
 	r.goto(1190, -50, -1) # r.goto(150,-800,-1)

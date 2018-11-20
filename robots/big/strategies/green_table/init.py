@@ -1,4 +1,3 @@
-import core.State as State
 def run():
 	r.setpos(1260,-800,180)
 	#  r.setpos(-1260,-800,180)

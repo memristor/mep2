@@ -6,7 +6,6 @@ class Splitter:
 		self.streams = []
 		
 	def on_recv(self,pkt):
-		#  print('splitter', pkt)
 		for i in self.streams:
 			if i.recv:
 				i.recv(pkt)

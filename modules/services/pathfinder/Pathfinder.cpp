@@ -253,7 +253,7 @@ Path Pathfinder::Search(Point start, Point end) {
 	
 	dbg(sdb::Stage stage("\x1b[33mPathfinder\x1b[0m");)
 	if(findObstacleInLineOfSight(LineSegment(start, end)) == 0) {
-		path.push_back(start);
+		// path.push_back(start);
 		path.push_back(end);
 		dbg(stage.Msg("found LOS start, end\n");)
 		return path;
@@ -279,7 +279,7 @@ Path Pathfinder::Search(Point start, Point end) {
 	for(NodeLink* l : startNode->visible_nodes) {
 		l->cost = l->distance;
 		l->cost_with_heuristic = l->cost + vec_length((endNode->point)-(l->target->point));
-					
+		
 		open_list.push(l);
 		dbg(stage.Msg("pushing ", node_get_coord(l->target));)
 	}
@@ -310,7 +310,7 @@ Path Pathfinder::Search(Point start, Point end) {
 			dbg(stage.Break();)
 			path.push_front(end);
 			Node* n = bestLink->source;
-			while(n) {
+			while(n && n->parent) {
 				dbg(stage.Msg("path: " + node_get_coord(n));)
 				path.push_front(n->point);
 				n=n->parent;

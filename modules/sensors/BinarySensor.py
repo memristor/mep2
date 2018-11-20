@@ -1,30 +1,30 @@
-	def actuator(self, which, val=None):
-		'''
-			which - which actuator to send data to
-			val - value to write
-				(omitt if reading sensor)
-		'''
-		
-		if type(which) is int:
-			self.raw(which, 'B', [val])
-		else:
-			if which not in robot_byte_act:
-				print('sensor or actuator ' + which + ' doesn\'t exist')
-				return
-
-			act = robot_byte_act[which]
-
-			if val != None and 'W' not in act[1]:
-				print('Cannot write to sensor')
+class BinarySensor:
+	def __init__(self, name, state=False, packet_stream=None):
+		self.ps = None
+		self.name = name
+		self.future = None
+		self.state = state
+		if packet_stream:
+			self.set_packet_stream(packet_stream)
 			
-			if val == None and 'R' not in act[1]:
-				print('Cannot read from actuator')
+	@_core.module_cmd
+	def wait_state(self, state):
+		self.trigg_on_state = state
+	
+	def set(self, state):
+		self.ps.send(bytes[self.state])
+		
+	def get(self):
+		return self.state
+	
+	def on_recv(self, pkt):
+		if self.future and pkt[0] == self.trigg_on_state:
+			self.future.set_result(1)
+		self.state = pkt[0]
 
-			data = []
-			if val != None:
-				data = [val]
-			else:
-				print("reading from sensor not implemented yet")
-				#self.raw(act[0], 'B', [val])
-
-			self.raw(act[0], 'B', [val])
+	def export_cmds(self):
+		_core.export_cmd('wait_state', wait_state)
+		
+	def set_packet_stream(self, ps):
+		ps.recv = self.on_recv
+		self.ps = ps

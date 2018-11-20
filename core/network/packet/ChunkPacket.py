@@ -1,5 +1,4 @@
 from .PacketStream import *
-from core.Util import nice_hex
 import struct 
 
 class ChunkPacket(PacketStream):
@@ -38,7 +37,6 @@ class ChunkPacket(PacketStream):
 			print('chunk fail')
 			return
 		
-		#  print('sending chunk: ', nice_hex(chunk))
 		self.stream.send(chunk)
 
 	@staticmethod

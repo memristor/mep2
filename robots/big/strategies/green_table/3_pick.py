@@ -1,5 +1,4 @@
-import core.State as State
-#weight=9
+weight=9
 
 def run():
 	combination = State.combination
@@ -22,11 +21,7 @@ def run():
 	r.speed(50)
 	with disabler('collision'):
 		r.goto(340, 505-5-3) # r.goto(1000,-1355)
-		
-		lift(0)
-		pump(0,1)
-		sleep(0.2)
-		lift(1)
+		pick()
 	
 	r.speed(100)
 	r.forward(-150)

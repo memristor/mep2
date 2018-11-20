@@ -143,6 +143,7 @@ Point LineSegment::IntersectionPoint(const LineSegment& b) const {
 	double t2 = (v1_slope * pdx - pdy) / (v2.y - v1_slope*v2.x);
 	return Point(v2.x*t2, v2.y*t2);
 	*/
+	return Point(0,0);
 }
 
 Point LineSegment::GetClosestPoint(Point pt) {

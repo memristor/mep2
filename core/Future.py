@@ -9,15 +9,26 @@ class Future:
 		self.on_done = []
 		
 	def set_result(self, result):
-		self.result = result
+		if self.state != FINISHED:
+			self.result = result
+			if self.runable != None:
+				#  print('waking runable', self.runable.name)
+				self.runable.wake()
+			for on_done in self.on_done:
+				on_done()
+			self.on_done.clear()
 		self.state = FINISHED
-		if self.runable != None:
-			#  print('waking runable', self.runable.name)
-			self.runable.wake()
-		for i in self.on_done:
-			i()
-		self.on_done.clear()
 		
+	def get_result(self):
+		return self.result
+	get = get_result
+	set = set_result
+	
+	val = property(get, set)
+	
+	def get_exception(self):
+		return self.exception
+	
 	def set_exception(self, exception):
 		self.exception = exception
 		
