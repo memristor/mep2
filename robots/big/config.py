@@ -133,8 +133,6 @@ act.export_cmds()
 
 _core.export_cmd('cube_detected', lambda: cube_det.detected)
 
-e=_core.get_exported_commands()
-
 ######### BIG pathfind ########
 @_core.do
 def pathfind(x,y,o=1):
@@ -142,11 +140,11 @@ def pathfind(x,y,o=1):
 	path = pathfinder.fix_path(path)
 	if not path:
 		print('no path: ', x,y)
-		e._task_suspend()
+		_e._task_suspend()
 	else:
 		print('pathfinding: ', path)
 	for i in path:
-		e.r.goto(*i,o)
+		_e.r.goto(*i,o)
 
 _core.export_cmd('pathfind', pathfind)
 ###############################
@@ -171,11 +169,11 @@ def default_cmds():
 				print('resuming')
 			print('collision safe')
 		
-	e._listen('collision', on_collision)
+	_e._listen('collision', on_collision)
 	def rep():
-		e.sleep(2)
-		e._next_cmd()
-	#e._listen('stuck', rep)
+		_e.sleep(2)
+		_e._next_cmd()
+	#_e._listen('stuck', rep)
 #  _core.on('stuck', stuck_behavior)
 _core.set_task_setup_func(default_cmds)
 
@@ -198,38 +196,38 @@ def start_timer():
 
 #### PID
 def init_task():
-	e.r.conf_set('send_status_interval', 100)
-	e.r.conf_set('wheel_distance', 255.2) #248.47
-	e.r.conf_set('wheel_r1', 63.67) #61.92
-	e.r.conf_set('wheel_r2', 64)
+	_e.r.conf_set('send_status_interval', 100)
+	_e.r.conf_set('wheel_distance', 255.2) #248.47
+	_e.r.conf_set('wheel_r1', 63.67) #61.92
+	_e.r.conf_set('wheel_r2', 64)
 	
 	if not sim:
-		e.r.conf_set('pid_d_p', 3.7)
-		e.r.conf_set('pid_d_d', 100)
-		e.r.conf_set('pid_r_p', 4.0)
-		e.r.conf_set('pid_r_d', 150)
-		e.r.conf_set('pid_r_i', 0.013)
+		_e.r.conf_set('pid_d_p', 3.7)
+		_e.r.conf_set('pid_d_d', 100)
+		_e.r.conf_set('pid_r_p', 4.0)
+		_e.r.conf_set('pid_r_d', 150)
+		_e.r.conf_set('pid_r_i', 0.013)
 	
-	e.r.conf_set('accel', 600)
-	e.r.conf_set('alpha', 550) #650
+	_e.r.conf_set('accel', 600)
+	_e.r.conf_set('alpha', 550) #650
 	
 	#  wait_activator()
-	#  e.sleep(10)
+	#  _e.sleep(10)
 	
 	if not sim:
-		e.prepare_lift()
-		e._print('initialized')
+		_e.prepare_lift()
+		_e._print('initialized')
 		act.initialize()
-		e._print('rot')
-		e.rotate(0)
-		e._print('ready')
-		e.chinch()
+		_e._print('rot')
+		_e.rotate(0)
+		_e._print('ready')
+		_e.chinch()
 	else:
-		e.sleep(3)
-	#  e.sleep(10)
-	e.send_msg('small_go')
-	e._print('started')
-	#  e.sleep(100)
+		_e.sleep(3)
+	#  _e.sleep(10)
+	_e.send_msg('small_go')
+	_e._print('started')
+	#  _e.sleep(100)
 	start_timer()
 
 _core.set_init_task(init_task)

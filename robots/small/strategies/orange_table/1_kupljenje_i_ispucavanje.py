@@ -12,10 +12,10 @@ def run():
 	turbina(85) ###########
 	sleep(0.5)
 
-	with disabler('collision'):	
+	with disabled('collision'):	
 		r.goto(-1316, -192) #  r.goto(720,48)
 
-	with disabler('collision'):
+	with disabled('collision'):
 		for i in range(8):
 			r.forward(25)
 			sleep(0.01)

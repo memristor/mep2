@@ -119,8 +119,6 @@ for i,v in enumerate(poles):
 	_core.entities.add_entity('static','pole'+str(i), polygon_square_around_point(v,100), point=v)
 #################################
 
-e=_core.get_exported_commands()
-
 ##### PATHFINDING ######
 from modules.services.PathfinderService import *
 pathfinder = PathfinderService()
@@ -135,8 +133,8 @@ def pathfind(x,y,o=1):
 	else:
 		print('pathfinding: ', path)
 	for pt in path:
-		e.r.goto(*pt,0)
-		# e.r.move(*i,150,0)
+		_e.r.goto(*pt,0)
+		# _e.r.move(*i,150,0)
 	return True
 		
 pathfinder.prepare_pathfinder()
@@ -148,11 +146,9 @@ share.set_state('small_points', 0)
 
 @_core.do
 def addpts(pts):
-	e.set_state('small_points', e.get_state('small_points')+pts)
+	_e.set_state('small_points', _e.get_state('small_points')+pts)
 _core.export_cmd('addpts', addpts)
 #####################################
-
-e=_core.get_exported_commands()
 
 ########## TASK INITIALIZATION ##############
 future=None
@@ -198,15 +194,15 @@ def robot_behavior():
 		task.pause()
 		#  motion.forward(-100, future=None)
 		def wr():
-			e.sleep(2)
-			e._do(task.resume)
-		e._do(wr)
+			_e.sleep(2)
+			_e._do(task.resume)
+		_e._do(wr)
 		print('got stuck')
 		#  if future:
 			#  future.runable.redo()
 	
-	e._listen('collision', on_collision)
-	#  e._listen('stuck', on_stuck, _insync=True)	
+	_e._listen('collision', on_collision)
+	#  _e._listen('stuck', on_stuck, _insync=True)	
 
 _core.task_setup_func(robot_behavior)
 ##########################################
@@ -235,41 +231,41 @@ def start_timer():
 ###### ROBOT DEFAULT INITIAL TASK #######
 @_core.init_task
 def init_task():
-	e.r.send(b'R')
-	e.r.conf_set('send_status_interval', 100)
-	e.r.conf_set('enable_stuck', 0)
-	e.r.conf_set('wheel_r1', 68.0)
-	e.r.conf_set('wheel_r2', 67.25513)
-	e.r.conf_set('wheel_distance', 252.30)
+	_e.r.send(b'R')
+	_e.r.conf_set('send_status_interval', 100)
+	_e.r.conf_set('enable_stuck', 0)
+	_e.r.conf_set('wheel_r1', 68.0)
+	_e.r.conf_set('wheel_r2', 67.25513)
+	_e.r.conf_set('wheel_distance', 252.30)
 
 	if not sim:
-		e.r.conf_set('pid_d_p', 2.75)
-		e.r.conf_set('pid_d_d', 90)
-		#  e.r.conf_set('pid_d_d', 200)
-		e.r.conf_set('pid_r_p', 1.5)
-		#  e.r.conf_set('pid_r_p', 1.2)
-		e.r.conf_set('pid_r_d', 100)
+		_e.r.conf_set('pid_d_p', 2.75)
+		_e.r.conf_set('pid_d_d', 90)
+		#  _e.r.conf_set('pid_d_d', 200)
+		_e.r.conf_set('pid_r_p', 1.5)
+		#  _e.r.conf_set('pid_r_p', 1.2)
+		_e.r.conf_set('pid_r_d', 100)
 
-	e.r.conf_set('pid_r_i', 0.0)
-	e.r.conf_set('accel', 600)
-	e.r.conf_set('alpha', 600)
+	_e.r.conf_set('pid_r_i', 0.0)
+	_e.r.conf_set('accel', 600)
+	_e.r.conf_set('alpha', 600)
 	
 	### GO MSG ###
 	def listen_msg(msg):
 		print('listen msg', msg)
 		if msg == 'small_go':
-			e._label('go')
+			_e._label('go')
 		if msg == 'continue':
-			e._label('continue')
-	e._listen('message', listen_msg)
-	e._print('waiting go signal')
-	#e._sync('go')
-	e._print('go go go')
+			_e._label('continue')
+	_e._listen('message', listen_msg)
+	_e._print('waiting go signal')
+	#_e._sync('go')
+	_e._print('go go go')
 	##############
 	if not sim:
-		e.chinch()
+		_e.chinch()
 	else:
-		e.sleep(3)
+		_e.sleep(3)
 	start_timer()
 	
 ##############################

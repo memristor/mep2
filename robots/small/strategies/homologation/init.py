@@ -16,7 +16,7 @@ def run():
 	r.goto(705,-35)
 	sleep(0.3)
 
-	#  with disabler('collision'):
+	#  with disabled('collision'):
 	# disable detection here
 	for i in range(2):
 		r.forward(25)

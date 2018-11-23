@@ -3,7 +3,7 @@ weight=20
 #zelena
 def run():
 
-	with disabler('collision'):
+	with disabled('collision'):
 		r.speed(150)
 		r.goto(640, -750) #  r.goto(700, -50)
 		#  r.speed(40)		

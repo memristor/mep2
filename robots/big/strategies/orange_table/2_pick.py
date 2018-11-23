@@ -16,7 +16,7 @@ def run():
 
 	r.goto(-1190-10, -600) # r.goto(150,-250)
 	'''
-	with disabler('collision'):
+	with disabled('collision'):
 		r.speed(30)
 		r.goto(-1190-3,-870,-1)
 		sleep(1)
@@ -28,7 +28,7 @@ def run():
 	
 	r.speed(50)
 	
-	with disabler('collision'):
+	with disabled('collision'):
 		r.goto(-1190-10, 300) # r.goto(150,-1100)
 		lift(0)
 		pump(0,1)
@@ -39,7 +39,7 @@ def run():
 	r.goto(-1190, -50, -1) # r.goto(150,-800,-1)
 	
 	r.goto(-(1010+40+10), -310, -1) # r.goto(330,-390,-1)
-	with disabler('collision'):
+	with disabled('collision'):
 		r.goto(-(1010+50),-500) #dodato zeki
 	r.goto(-(1010+40+10), -700) #  r.goto(330, -120)
 

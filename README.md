@@ -57,7 +57,7 @@ it should be put in same place as config.py is, but creating additional folders 
 	motion = Motion(packet_stream=can.get_packet_stream(0x80000258))
 	motion.export_cmds('r') # exports commands with namespace 'r' (r.goto, r.conf_set, ...)
 	# add modules to core 
-	# 	(they will have their `def run():` functions executed prior to task execution, 
+	# 	(they will have their `def run(self):` functions executed prior to task execution, 
 	#	but not before config.py execution ends)
 	_core.add_module([can, motion])
 	```
@@ -74,6 +74,7 @@ it should be put in same place as config.py is, but creating additional folders 
 			a.set('new value') # <==> a.val = 'new value'
 			...
 		```
+		_State should only use [immutable](https://en.wikibooks.org/wiki/Python_Programming/Data_Types#Mutable_vs_Immutable_Objects) types
 	- task_name.py - tasks are inserted just by putting files, only .py files are used. 
 		When they are executed is entirely dependent on scheduler used and parameters given in this file.
 		```python
@@ -113,8 +114,9 @@ it should be put in same place as config.py is, but creating additional folders 
 		def leave():
 			...
 		```
+		
 		hello world example (used with hello world config.py), put this in init.py or some_task.py
-		```
+		```python
 		weight=1
 		def run():
 			# not necessary but useful for visualising on gui
@@ -123,7 +125,7 @@ it should be put in same place as config.py is, but creating additional folders 
 			# natural mathematic coordinate system
 			# x - when robot orientation == 0, robot is looking at positive x axis
 			# y - when robot orientation == 90, robot is looking at positive y axis
-			# setting robot starting position
+			# setting robot starting position (x,y,o), o - orientation (in degrees)
 			r.setpos(0,0,0)
 
 			# 200 mm forward
@@ -147,7 +149,7 @@ it should be put in same place as config.py is, but creating additional folders 
 			# go back to 0,0 in reverse
 			r.goto(0,0,-1)
 		```
-_State should only use [immutable](https://en.wikibooks.org/wiki/Python_Programming/Data_Types#Mutable_vs_Immutable_Objects) types
+
 ### main.py
 This file as its name explains, is used as platform main function (entry point). 
 Use:
@@ -182,7 +184,7 @@ global builtins:
 - _e - access to task exported stuff (everything that is available to task is available to config.py by this variable)
 - _State - class available for instancing in tasks and config.py
 - State - used for plugging in any global variables shared between tasks
-	```
+	```python
 	State.robot_loaded = _State(False, name='robot_loaded')
 	```
 ## Task execution
@@ -190,8 +192,6 @@ global builtins:
 Task code is executed asynchronously within state machine which is generated transparently by exported commands.
 
 Every task must have `def run():` function defined:
-
-### task structure
 
 
 for example:
@@ -268,7 +268,7 @@ def run():
 	_do(print, 4) # or: _do(lambda: print(4))
 ```
 output:
-```python
+```
 (waits 1 sec)
 1
 3
@@ -428,7 +428,9 @@ def run():
 ## asynchronous commands
 If we add parameter _future to command being exported (we can also assign it some default value to it), then function becomes asynchronous, 
 it will block thread execution until _future.set_result(1) is called anywhere. Argument _future may be saved somewhere else
-and finished some time later (for example when physical action is done, servo movement is done or robot reached destination or .set_exception('some message') if command failed)
+and finished some time later (for example when physical action is done, servo movement is done or robot reached destination or .set_exception('some message') if command failed).
+This asynchronous type of command is to be used in drivers.
+
 ```python
 saved_future=None
 def command_name(_future):
@@ -471,7 +473,7 @@ def command_name(_future):
 ```
 
 From inside task result can be checked this way:
-```
+```python
 def run():
 	res = command_name()
 	_do(lambda: print('result is:', res.val))
@@ -483,7 +485,10 @@ def run():
 
 ### simulation interface
 Asynchronous commands supports simulation interface which allows it to provide information about its
-execution without actually executing it. This type of command is to be used in modules.
+execution without actually executing it. If we add _sim parameter to asynchronous command, we can define its
+behavior in simulation mode. By default if simulation interface is not used, it is assumed that command does not
+block (lasts 0 seconds). 
+
 - one step simulation
 ```python
 @_core.export_cmd
@@ -565,3 +570,32 @@ now if we used this command before exporting other_name command, it would be acc
 def run():
 	t.other_name()
 ```
+
+## task instances
+Multiple similar tasks can be created from single task, where each instance differs by few constants.
+This can reduce amount of code needed to make strategy, and will make it more manageable. In case of errors, they can be
+fixed in one place (in single file) and not in all separate task files. Having little code also encourages experimentation.
+
+For example, if robot has to pick multiple objects of same type and similar way.
+
+```python
+_instances=2
+points=[ (100,200), (400,500) ]
+def run():
+	# use _i as task number and use it for generating different task based on number
+	_print('this is task number: ', _i)
+	
+	# operator * is parameter expansion operator
+	r.goto(*points[_i]) # <=> r.goto(points[_i][0], points[_i][1])
+	pick()
+	
+	# do something only for instance #1
+	if _i == 1:
+		_print('doing this only on instance: ', _i)
+```
+
+This will create 2 tasks:
+- 1. task will go to point (100,200) and pick something
+- 2. task will go to point (400,500) and pick something
+
+In theory all tasks can be made from single task, but idea is to use task instancing only when minimal changes exist between instances.

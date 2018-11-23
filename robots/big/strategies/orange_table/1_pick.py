@@ -24,7 +24,7 @@ def run():
 	r.speed(60)
 	r.goto(-635, -400) # r.goto(700, -450)
 	
-	with disabler('collision'):
+	with disabled('collision'):
 		lift(0)
 		pump(0,1)
 		sleep(1)

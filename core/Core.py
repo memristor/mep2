@@ -8,13 +8,14 @@ class Core():
 		self.quit = False
 		
 		import builtins
+		
 		# check if its already initialized anywhere
 		builtin_core = '_core'
-		if builtin_core in builtins.__dict__:
+		if hasattr(builtins, builtin_core):
 			return
+		
 		# core instance is available everywhere in whole python environment
-		builtins.__dict__[builtin_core] = self
-		# builtins.__dict__['Core'] = self
+		setattr(builtins, builtin_core, self)
 
 		from .Sensors import Sensors
 		from .Entities import Entities
@@ -26,39 +27,32 @@ class Core():
 		self.sensors = Sensors()
 		self.entities = Entities()
 		self.task_manager = TaskManager()
+		self.introspection = Introspection()
 		
 		self.state = {'direction':1, 'state':'I'}
 		self.modules = []
 		self.transform = Transform(([0,0],0),([0,0],0))
 		
-		self.sync_cmds = {}
 		self.robot_size = [200,100]
 		
-		self.introspection = Introspection()
-		self.introspection.run()
-		
-		self._export_ns = ''
-
-		self.exported_cmds={'':{}}
-		self.export_cmds()
-		builtins.__dict__['_e'] = type('',(),{})
+		setattr(builtins, '_e', self.task_manager.exports)
 		
 		# forward funcs from task_manager for convenience
-		self.get_exported_commands = self.task_manager.get_exported_commands
 		self.set_task_setup_func = self.task_manager.set_task_setup_func
 		self.task_setup_func = self.task_manager.set_task_setup_func
 		self.set_init_task = self.task_manager.set_init_task
 		self.init_task = self.task_manager.set_init_task
 		self.has_task = self.task_manager.has_task
 		self.set_task = self.task_manager.set_task
-		
-		self.task_manager.init_sync_funcs()
+		self.export_cmd = self.task_manager.export_cmd
+		self.export_ns = self.task_manager.export_ns
+		self.export_cmds()
 		
 		from core.State import StateBase, State, _State
 		self.position = StateBase(value=[0,0]) # robot position
 		self.angle = StateBase(value=0) # robot angle
-		builtins.__dict__['State'] = State
-		builtins.__dict__['_State'] = _State
+		setattr(builtins,'State', State)
+		setattr(builtins,'_State', _State)
 		import core.Task
 		core.Task.StateBase = StateBase
 	
@@ -99,34 +93,25 @@ class Core():
 		self.task_manager.fullstop()
 		self.quit = True
 	
-	def export_ns(self, ns=None):
-		if ns == None: return self._export_ns
-		self._export_ns = ns
-		
-	def export_cmd(self, cmd, func=None):
-		ns = self._export_ns
-		if not func:
-			if type(cmd) == str:
-				def wrapper(f):
-					self.export_cmd(cmd, f)
-					return f
-				return wrapper
-			else:
-				cmd,func=cmd.__name__,cmd
-		co = func.__code__
-		func_args = co.co_varnames[:co.co_argcount+co.co_kwonlyargcount]
-		if '_future' in func_args:
-			if ns not in self.exported_cmds:
-				self.exported_cmds[ns] = {}
-			self.exported_cmds[ns][cmd] = func
-		else:
-			self.sync_cmds[cmd] = func
-	
 	def export_cmds(self):
 		def sleep_cmd(s,_sim=False,_future=None):
 			if _sim: return s
 			self.loop.call_later(s, lambda: _future.set_result(1))
 		self.export_cmd('sleep', sleep_cmd)
+		from contextlib import contextmanager
+		@self.export_cmd
+		@contextmanager
+		def disabled(name):
+			_e._unlisten(name)
+			yield
+			_e._listen(name)
+		
+		
+		@self.export_cmd
+		@_core.do
+		def _print(*args):
+			if not _e._sim:
+				print(*args)
 		
 	def get_position(self):
 		return self.position.get() + [self.angle.get()]
@@ -172,12 +157,12 @@ class Core():
 			if hasattr(i, 'run'):
 				# print('running',i.name)
 				i.run()
+		self.introspection.run()
 		# run main loop
 		self.loop.run_until_complete(self.main_loop())
 	
 	# decorators
 	def do(self, f):
-		self.get_exported_commands()
 		@functools.wraps(f)
 		def wrapper(*args, **kwargs):
 			return _e._do(f, *args, **kwargs)
@@ -198,7 +183,10 @@ class Core():
 			cls = args[0]
 			cls.future = _future
 			if cls.future:
+				if hasattr(cls, 'on_cancel'):
+					cls.future.set_on_cancel(cls.on_cancel)
 				import time
 				cls.future.time = time.monotonic()
+			
 			return f(*args, **kwargs)
 		return wrapper

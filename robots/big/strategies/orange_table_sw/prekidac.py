@@ -4,7 +4,7 @@ weight=20
 def run():
 	
 	
-	with disabler('collision'):
+	with disabled('collision'):
 		r.speed(150)
 		r.goto(-640, -750) #  r.goto(700, -50)
 		

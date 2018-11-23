@@ -19,13 +19,13 @@ def run():
 		rotate(start_rotation)
 	_spawn(set1)
 	r.goto(600,-460) # brze pa uspori
-	with disabler('collision'):
+	with disabled('collision'):
 		#zeki ugasio za prvi krst nema potrebe za senzorima
 		#r.goto(640, -770) #  r.goto(700, -50)
 		r.speed(60)
 		r.goto(640, -460) # r.goto(700, -450)
 	
-	with disabler('collision'):
+	with disabled('collision'):
 		lift(0)
 		pump(0,1)
 		sleep(1)

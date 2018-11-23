@@ -1,7 +1,7 @@
 import binascii
 from math import sqrt,modf,log10
 import time
-from core.convert import *
+from core.Convert import *
 from core.network.packet.PacketStream import *
 from core.Util import *
 from .const_motion import *
@@ -32,8 +32,8 @@ class Motion:
 			self.set_packet_stream(packet_stream)
 		
 	def set_packet_stream(self, ps):
-		ps.recv = self.on_recv
 		self.ps = ps
+		self.ps.recv = self.on_recv
 	
 	def fix_glitch(self):
 		print('fixing glitch')
@@ -102,19 +102,23 @@ class Motion:
 		self.send(x)
 	
 	def curve_cmd(self, x,y,alpha,oa,o):
-		self.send(b'Q' + pack(x) + pack(y) + pack(alpha) + pack(oa) + uchr(to_uchar(o)))
+		self.send(b'Q' + pack(x) + pack(y) + pack(alpha) + pack(oa) + uchr(o))
 	
 	def move_to_cmd(self, x,y,r=100,o=1):
-		self.send(b'N' + pack(x) + pack(y) + uchr(to_uchar(o)) + pack(r))
+		self.send(b'N' + pack(x) + pack(y) + uchr(o) + pack(r))
 		
 	def goto_cmd(self, x,y,r=100,o=1):
-		self.send(b'G' + pack(x) + pack(y) + uchr(0) + uchr(to_uchar(o)))
+		self.send(b'G' + pack(x) + pack(y) + uchr(0) + uchr(o))
 		
 	def turn_cmd(self, o):
 		self.send(b'T' + pack(o))
 		
 	def stop_cmd(self):
 		self.send(b'S')
+		
+	def on_cancel(self):
+		self.future = None
+		print('on cancel')
 	
 	def export_cmds(self, namespace='r'):
 		_core.export_ns(namespace)
@@ -246,15 +250,18 @@ class Motion:
 		else:
 			return False
 	
-	use_hash=True
+	use_hash=False
 	
-	@_core.asyn2
-	def conf_set(self, k, v, dec=4):
+	@_core.module_cmd
+	def conf_set(self, k, v, dec=4, _sim=False):
+		if _sim:
+			return 0
+		self.future.val = 0
 		if k in config_floats:
 			fv = float(v)
 			dec = 0 if fv == 0 else 9 - ( int(log10(abs(fv))) + 1 )
 			v = fv
-		key = uchr(self.conf_get_key(k)) if not self.use_hash else uword16(simple_hash(k))
+		key = uchr(self.conf_get_key(k)) if not self.use_hash else p16(simple_hash(k))
 		to_send = bytearray(self.conf_float_to_bytes(v,dec))
 		if self.use_hash: del to_send[-2]
 		cmd = b'c' if not self.use_hash else b'h'
@@ -267,7 +274,7 @@ class Motion:
 		
 	@_core.module_cmd
 	def conf_get(self, k):
-		key=uchr(self.conf_get_key(k)) if not self.use_hash else uword16(simple_hash(k))
+		key=uchr(self.conf_get_key(k)) if not self.use_hash else p16(simple_hash(k))
 		cmd = b'C' if not self.use_hash else b'H'
 		msg = cmd + key
 		self.send(msg)

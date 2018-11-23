@@ -16,7 +16,7 @@ def run():
 	r.goto(1190-15, -50) # r.goto(150,-800)
 	r.speed(50)
 	
-	with disabler('collision'):
+	with disabled('collision'):
 		r.goto(1190, 250) # r.goto(150,-1100) r.goto(1190+15,250)
 		pick()
 		
@@ -25,13 +25,13 @@ def run():
 	
 	r.goto(1010+40+10, -310, -1) # r.goto(330,-390,-1)
 	r.goto(1010+50,-550)
-	with disabler('collision'):
+	with disabled('collision'):
 		r.goto(1010+40+10, -700) #  r.goto(330, -120)
 	
 
 	build_cubes(s[1])
 	addpts(40)
 	#  r.goto(790, -550, -1) # r.goto(550,-300,-1)
-	with disabler('collision'):
+	with disabled('collision'):
 		r.forward(-150)
 	lift(0)

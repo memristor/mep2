@@ -1,5 +1,6 @@
 PENDING='pending'
 FINISHED='finished'
+CANCELLED='cancelled'
 class Future:
 	def __init__(self, runable=None):
 		self.result = None
@@ -7,6 +8,7 @@ class Future:
 		self.runable = runable
 		self.state = PENDING
 		self.on_done = []
+		self.on_cancel = []
 		
 	def set_result(self, result):
 		if self.state != FINISHED:
@@ -14,8 +16,7 @@ class Future:
 			if self.runable != None:
 				#  print('waking runable', self.runable.name)
 				self.runable.wake()
-			for on_done in self.on_done:
-				on_done()
+			for on_done in self.on_done: on_done()
 			self.on_done.clear()
 		self.state = FINISHED
 		
@@ -38,7 +39,18 @@ class Future:
 	
 	def set_on_done(self, on_done):
 		self.on_done.append(on_done)
-		
+	
+	def set_on_cancel(self, on_cancel):
+		self.on_cancel.append(on_cancel)
+	
+	def reset(self):
+		self.state = PENDING
+	
+	def cancel(self):
+		if self.state != CANCELLED:
+			self.state = CANCELLED
+			for on_cancel in self.on_cancel: on_cancel()
+		print('canncel fut')
 	def done(self):
 		return self.state != PENDING
 

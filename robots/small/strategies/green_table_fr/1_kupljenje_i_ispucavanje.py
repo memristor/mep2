@@ -10,7 +10,7 @@ def run():
 	cev(0)
 	turbina(85)
 	sleep(0.5)
-	with disabler('collision'):
+	with disabled('collision'):
 		r.goto(1316, -195) #  r.goto(720,48)
 
 	for i in range(8):

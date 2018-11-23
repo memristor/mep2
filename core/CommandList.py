@@ -52,7 +52,7 @@ class Command:
 		global tl
 		tl += 1
 		msg = tabs() + '----'+\
-			tabs() + 'Command ' + s.name +\
+			tabs() + 'Command ' + str(s.name) +\
 			tabs() + 'params: ' + str(s.params.keys()) +\
 			tabs() + 'commands: ' + str(s.commands) +\
 			tabs() + '----\n'
@@ -83,6 +83,8 @@ def get_command_list():
 from core.Future import Future
 def gen_cmd(name, *args, **kwargs):
 	global current_command_list
+	if type(name) is not tuple:
+		name = ('', name)
 	cmd = Command(name)
 
 	cmd.kwargs = dict(kwargs)

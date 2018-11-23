@@ -17,8 +17,8 @@ class PathfinderService:
 		# terrain restriction polygons
 		s = max(_core.robot_size)/2
 		obsize = 100
-		playing_area_constaint = [ [-1500-obsize,-1000,obsize,2000+100], [-1500,1000,3000+100,obsize], 
-									[1500,-1000,obsize,2000+100], [-1500,-1000-obsize,3000+100,obsize] ]
+		playing_area_constaint = [ [-1500-obsize, -1000, obsize, 2000+obsize], [-1500, 1000, 3000+obsize, obsize], 
+									[1500, -1000, obsize, 2000+100], [-1500, -1000-obsize, 3000+obsize, obsize] ]
 		for rect in playing_area_constaint:
 			poly = polygon_from_rect(rect)
 			# self.pathfinder.AddPolygon(poly,s)
@@ -33,7 +33,7 @@ class PathfinderService:
 	
 	def on_ent_remove(self, ent):
 		if hasattr(ent, 'poly_id'):
-			print('pathfinding removing ', ent.name, ent.poly_id)
+			# print('pathfinding removing ', ent.name, ent.poly_id)
 			self.pathfinder.RemovePolygon(ent.poly_id)
 			self.loaded_ents.remove(ent)
 	

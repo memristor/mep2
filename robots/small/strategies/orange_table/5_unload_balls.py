@@ -21,7 +21,7 @@ def run():
 	r.goto(790,550)
 	r.goto(100,550)
 	r.goto(400,550,-1)
-	with disabler('collision'):
+	with disabled('collision'):
 		r.goto(400,660)
 		r.speed(130)
 		r.goto(400,730)

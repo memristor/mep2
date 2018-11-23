@@ -2,7 +2,6 @@ weight=9
 
 def run():
 	combination = State.combination
-	
 	#####################3
 	##  COLLECTING THIRD
 	####################
@@ -19,7 +18,7 @@ def run():
 	  
 	r.goto(790, 505-30, -1) # r.goto(550,-1355,-1)
 	r.speed(50)
-	with disabler('collision'):
+	with disabled('collision'):
 		r.goto(340, 505-5-3) # r.goto(1000,-1355)
 		pick()
 	
@@ -27,7 +26,7 @@ def run():
 	r.forward(-150)
 	
 	r.goto(790+55, -400) # r.goto(550,-300)
-	with disabler('collision'):
+	with disabled('collision'):
 		r.goto(790+55, -700) # r.goto(550,-120)
 
 	build_cubes(s[1])

@@ -17,7 +17,7 @@ def run():
 		_label('prepared')
 	_spawn(prepare_cross)
 	
-	with disabler('collision'):
+	with disabled('collision'):
 		#zeki ugasio za prvi krst nema potrebe za senzorima
 		r.goto(640, -800) #  r.goto(700, -50)
 		r.absrot(90)

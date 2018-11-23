@@ -1,4 +1,4 @@
-from core.convert import l16
+from core.Convert import l16
 from core.Util import AABB, point_distance, add_pt, point_int
 class Lidar:
 	def __init__(self, tolerance=300, tune_angle=0, packet_stream=None):

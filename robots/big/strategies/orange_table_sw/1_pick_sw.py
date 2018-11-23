@@ -20,12 +20,12 @@ def run():
 	_spawn(set1)
 	
 	# zeki dodaje fali bre
-	with disabler('collision'):
+	with disabled('collision'):
 		r.speed(60) # sa 60 ZEKI
 		r.goto(-640, -460) # r.goto(700, -450)	
 
 	
-	with disabler('collision'):
+	with disabled('collision'):
 		lift(0)
 		pump(0,1)
 		sleep(1)

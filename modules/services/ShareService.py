@@ -58,20 +58,22 @@ class ShareService:
 	def get_state(self, state_name):
 		return self.states[state_name]
 		
-	@_core.asyn2
+	@_core.do
 	def set_state(self, state_name, value):
 		self.states[state_name] = value
 		p=json.dumps((state_name, self.states[state_name])).encode()
 		self.ps.send(bytes([SHARE_STATE]) + p)
 		
-	@_core.asyn2
+	@_core.do
 	def send_msg(self, msg):
 		print('sending:',msg)
 		self.ps.send(bytes([SHARE_MESSAGE]) + msg.encode())
 		
 	def export_cmds(self, namespace=''):
+		p=_core.export_ns()
 		_core.export_ns(namespace)
 		_core.export_cmd('get_state', self.get_state)
 		_core.export_cmd('set_state', self.set_state)
 		_core.export_cmd('send_msg', self.send_msg)
+		_core.export_ns(p)
 		

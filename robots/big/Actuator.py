@@ -45,44 +45,40 @@ class Actuator:
 		_core.export_cmd('lift', self.lift)
 		_core.export_cmd('lift_sw', self.lift_sw)
 		
-		e=_core.get_exported_commands()
-		
 		def rotate(x):
 			if not self.sim:
-				e.a.rotate(x)
-			e.sleep(0.2)
+				_e.a.rotate(x)
+			_e.sleep(0.2)
 				
 		_core.export_cmd('rotate', rotate)
 		_core.export_cmd('prepare_lift', self.prepare_lift)
-		
-		e=_core.get_exported_commands()
-		
+				
 		def unload(n, first=False):
 			if n == 1:
-				e.r.forward(58)
+				_e.r.forward(58)
 				if first:
-					e.lift(0)
-				e.pump(1,0)
+					_e.lift(0)
+				_e.pump(1,0)
 				if first:
-					e.lift(1)
-				e.r.forward(-58)    
+					_e.lift(1)
+				_e.r.forward(-58)    
 			elif n == 2:  
-				e.rotate(3)
+				_e.rotate(3)
 				if first:
-					e.lift(0)
-				e.pump(2,0)
+					_e.lift(0)
+				_e.pump(2,0)
 			elif n == 3:
-				e.rotate(1)
+				_e.rotate(1)
 				if first:
-					e.lift(0)
-				e.pump(3,0)
+					_e.lift(0)
+				_e.pump(3,0)
 			elif n == 4:
-				e.rotate(2)
+				_e.rotate(2)
 				if first:
-					e.lift(0)
-				e.pump(5,0)
+					_e.lift(0)
+				_e.pump(5,0)
 			if first:
-				e.lift(1)
+				_e.lift(1)
 			
 		colors=['green','blue','orange','black']
 		def check_side(side, combination):
@@ -140,15 +136,13 @@ class Actuator:
 		_core.export_cmd('get_remaining_pump', get_remaining_pump)
 		_core.export_cmd('pick', pick)
 		
-		e=_core.get_exported_commands()
-		
 		def build_cubes(color):
-			with e.disabler('collision'):
+			with _e.disabled('collision'):
 				for i in enumerate(color):
-					e.lift(max(1, i[0]))
-					e.unload(i[1],i[0] == 0)
-				e.lift(3)
-				e.unload(e.get_remaining_pump(color))
+					_e.lift(max(1, i[0]))
+					_e.unload(i[1],i[0] == 0)
+				_e.lift(3)
+				_e.unload(_e.get_remaining_pump(color))
 
 		
 		_core.export_cmd('build_cubes', build_cubes)

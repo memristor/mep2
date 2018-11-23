@@ -23,7 +23,7 @@ def run():
 	r.absrot(180)
 	r.goto(-590,-460)
 	r.speed(50)#usopori prilaz
-	with disabler('collision'):
+	with disabled('collision'):
 		r.goto(-680,-460)#640 bi trebalo
 		
 		lift(0)
@@ -36,7 +36,7 @@ def run():
 	r.absrot(0)
 	
 	r.goto(400,-460) # r.goto(550,-300)
-	with disabler('collision'):
+	with disabled('collision'):
 		r.goto(tower_pos, -500)
 		r.goto(tower_pos, -700)
 	build_cubes(s[1])

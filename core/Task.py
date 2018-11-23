@@ -62,7 +62,7 @@ class Runnable:
 	
 	def redo(s):
 		if not s.overflow():
-			s.get_current_command().runable.cmd_state.set(0)
+			s.cmd_state.set(0)
 			s.wake()
 	
 	#TODO: rename function or something
@@ -137,8 +137,6 @@ class Task:
 		s.name = name
 		s.state = StateBase(value=PENDING)
 		s.module = module
-		
-		s.prepend_func = None
 		s.module._sim = False
 	
 	def add_runnable(s,r):
@@ -148,10 +146,7 @@ class Task:
 		return r
 		
 	def run_task(s, task_func=None, on_task_done_cb=None):
-		
 		new_command_list()
-		
-		if s.prepend_func: s.prepend_func()
 		ret = task_func() if task_func else s.module.run()
 		
 		if ret == False:
@@ -159,7 +154,6 @@ class Task:
 		
 		s.state.set(PENDING)
 		cmd = Command(CMD_DO, command_list=get_command_list())
-		
 		# [Command, ip]
 		s.main_branch = Runnable(cmd, name='main_branch')
 		# s.main_branch.labels = get_command_list().labels
@@ -256,6 +250,8 @@ class Task:
 	def run_cycle(s):
 		if s.main_branch.state.get() in (DONE,SUSPENDED):
 			return
+		_e._main = s.main_branch.future
+		s.module._main = _e._main
 		
 		b = s.branches.get()
 		for r in b: s.run_runable(r)
@@ -275,14 +271,18 @@ class Task:
 		import core.State as State
 		State._last_sim += 1
 		State._sim_mode = State._last_sim
+		_e._sim = True
 		s.module._sim = True
 		Task.is_sim = True
 		yield
 		State._sim_mode = False
+		_e._sim = False
 		s.module._sim = False
 		Task.is_sim = False
 			
-	def run_simulator(s):
+	def run_simulator(s, max_sim_time=0, max_cpu_clock=0):
+		import time
+		time_start=time.clock()
 		with s.simulator():
 			import heapq
 			Task.sim_heap = sorted([(b.sim_time, b) for b in s.branches.get() if b.state.get() == RUNNING])
@@ -291,7 +291,6 @@ class Task:
 				if not s.sim_heap:
 					return float('inf')
 				sim_time, r = heapq.heappop(s.sim_heap)
-				# print(col.yellow + 'doing one', r.state.get(), r.name, col.white)
 				if r.state.get() == WAITING:
 					if r.sim_func:
 						r.sim_duration = r.sim_func(r.sim_time, r.sim_duration)
@@ -303,12 +302,7 @@ class Task:
 					else:
 						r.future.set_result(1)
 				else:
-					# print('doing cmd: ', r.get_current_command())
 					s.run_runable(r)
-					# print('after runable: ', r.state.get(), r.name)
-					# if r.state.get() == RUNNING:
-						# print('repush')
-						# s.sim_push_event(r)
 		return s.main_branch.sim_time
 
 	def do_meta_command(self, cmd, r):
@@ -329,14 +323,15 @@ class Task:
 			 CMD_THIS: self.cmd_this,
 			 CMD_UNLISTEN: self.cmd_unlisten,
 			 CMD_WHILE: self.cmd_while}
-		self.meta_commands[cmd.name](cmd, r)
+		self.meta_commands[cmd.name[-1]](cmd, r)
 		
 	### EXEC ###
 	def run_command(s, r):
 		tag='run_command'
 		cmd = r.get_current_command()
 		# dbg(tag, 'cmd: ', cmd)
-		if cmd.name.startswith('_'):
+		# print(cmd.name)
+		if cmd.name[-1].startswith('_'):
 			s.do_meta_command(cmd,r)
 			if s.is_sim and r.state.get() == RUNNING:
 				s.sim_push_event(r)
@@ -348,20 +343,31 @@ class Task:
 			else: # command starting
 				f = cmd.future
 				f.runable = r
+				r.future = f
 				kwargs = cmd.kwargs
 				kwargs['_future'] = f
 				r.cmd_state.set(1)
 				r.wait_signal()
+				# func = s.exported_cmds[cmd.name]
 				func = s.exported_cmds[cmd.name]
 				# func_args = func.__code__.co_varnames
 				# import inspect
 				# func_args = list(inspect.signature(func).parameters.keys())
 				co = func.__code__
-				func_args = co.co_varnames[:co.co_argcount+co.co_kwonlyargcount]
-				if '_sim' in func_args: kwargs['_sim'] = s.is_sim
-				# print(cmd.args, kwargs)
-				ret = func(*cmd.args, **kwargs)
+				# func_args = co.co_varnames[:co.co_argcount+co.co_kwonlyargcount]
+				import inspect
+				func_args = co.co_varnames[:co.co_argcount+co.co_kwonlyargcount] + \
+							tuple(inspect.signature(func).parameters.keys())
+				sim_mode = '_sim' in func_args
+				if sim_mode:
+					kwargs['_sim'] = s.is_sim
+				
 				if s.is_sim:
+					if sim_mode: 
+						
+						ret = func(*cmd.args, **kwargs)
+					else:
+						ret = 0
 					r.sim_duration = 0
 					if type(ret) == tuple:
 						ret,func2 = ret
@@ -374,6 +380,8 @@ class Task:
 					r.sim_time += r.sim_duration
 					r.future = f
 					if s.is_sim and not f.done(): s.sim_push_event(r)
+				else:
+					ret = func(*cmd.args, **kwargs)
 	
 	def cmd_do(s, cmd, r):
 		if r.cmd_state.get() == 1:
@@ -532,6 +540,8 @@ class Task:
 		
 		
 		# TODO: process listener_name if needed
+		# if listener_name.startswith('#'):
+			
 		
 		# get type_record
 		if event_name in s.evt_type:
@@ -555,11 +565,14 @@ class Task:
 			l = _core.service_manager.listen(*cmd.args, **cmd.kwargs)
 			listener_record.listener = l
 		
-		once = cmd.name != CMD_LISTEN
+		once = cmd.name[1] != CMD_LISTEN
 		
 		# TODO: take order into account
 		el = [callback, False, once]
-		listener_record.children.append(el)
+		if order == 'top':
+			listener_record.children.append(el)
+		else:
+			listener_record.children.insert(0, el)
 		
 		# append to runable, use filter later to find and remove runable based hooks
 		r.listeners.append(el)
@@ -608,10 +621,22 @@ class Task:
 		else:
 			label = cmd.args[0]
 			r2=r
+
+		if r2.state.get() == DONE:
+			r.inc_ip()
+			return
+		
+		if not s.is_sim and r2.future and not r2.future.done():
+			r2.future.cancel()
 		
 		lab=next((l for l in r2.labels if l[0] == label), None)
 		
-		if lab: r2.set_ip(lab[1])
+		if lab:
+			r2.set_ip(lab[1])
+			r2.cmd_state.set(0)
+			r2.state.set(RUNNING)
+			if not s.is_sim:
+				r2.future = r2.get_current_command().future
 		if r != r2: r.inc_ip()
 	
 	def dump_info(s):

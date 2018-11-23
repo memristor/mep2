@@ -12,46 +12,17 @@ class TaskManager:
 		self._init_task = None
 		self.cached_exported_cmds = None
 		self._task_setup_func = None
+		self._export_ns=''
 		
-		self.exported_cmds = {}
-		self.exported_wrappers = {'':{}}
+		self.exports = type('exports', (), {'_sim': False})()
+		self.exported_commands = {}
 		
 		from core.schedulers.BasicScheduler import BasicScheduler
 		self.set_scheduler(BasicScheduler())
 		
+		self.init_export()
+		
 	
-	def init_sync_funcs(self):
-		self.sync_funcs = {}
-		
-		@contextmanager
-		def disabled(name):
-			_e._unlisten(name)
-			yield
-			_e._listen(name)
-		
-		@_core.do
-		def _print(*args):
-			if not _e._sim:
-				print(*args)
-			
-		self.sync_funcs.update({
-			'disabled': disabled, 
-			'disabler': disabled, # alias for disabled
-			'_print': _print
-		})
-
-	def export_cmd(self, ns, name, func):
-		if ns not in self.exported_wrappers:
-			self.exported_wrappers[ns] = {}
-		export_name = ns+'.'+name
-		self.exported_cmds[export_name] = func
-		
-		from .CommandList import wrap_gen
-		w = wrap_gen(export_name)
-		
-		self.exported_wrappers[ns][name] = w
-		return w
-
 	def set_scheduler(self, scheduler):
 		self.scheduler = scheduler
 		self.scheduler.task_manager = self
@@ -76,44 +47,54 @@ class TaskManager:
 	def get_task(self,name):
 		task = next((t for t in self.tasks if t.name == name), None)
 		return task
-		
-	def get_exported_commands(self):
-		if self.core_funcs_exported:
-			return self.cached_exported_cmds
-			
-		t = type('',(),{})
-		self._export_cmds_to_module(t)
-		self.cached_exported_cmds = t
-		import builtins
-		builtins.__dict__['_e'] = t
-		return t
 	
-	def _export_core_functions(self):
-		if self.core_funcs_exported:
-			return
-		#  self.core_funcs_exported = True
+	
+	##### EXPORT #####
+	def init_export(self):
+		ns=''
+		for k,w in meta_chain_funcs.items():
+			setattr(self.exports, k, w)
+	
+	def export_ns(self, ns=None):
+		if ns == None: return self._export_ns
+		self._export_ns = ns
 		
-		for e in _core.exported_cmds:
-			for k,v in _core.exported_cmds[e].items():
-				self.export_cmd(e, k, v)
-				
-	def _export_cmds_to_module(self, module):
-		self._export_core_functions()
-		
-		for k,v in meta_chain_funcs.items():
-			self.exported_wrappers[''][k] = v
-			
-		for e in _core.exported_cmds:
-			if e == '':
-				o = module
+	def export_cmd(self, cmd, func=None):
+		ns = self._export_ns
+		if not func:
+			if type(cmd) == str:
+				def wrapper(f):
+					self.export_cmd(cmd, f)
+					return f
+				return wrapper
 			else:
-				o = type('',(),{})
-				setattr(module, e, o)
-			for k,v in self.exported_wrappers[e].items():
-				setattr(o, k, v)
+				cmd,func=cmd.__name__,cmd
 				
-		for k,v in _core.sync_cmds.items(): setattr(module, k, v)
-		for k,v in self.sync_funcs.items(): setattr(module, k, v)
+		co = func.__code__
+		import inspect
+		func_args = co.co_varnames[:co.co_argcount+co.co_kwonlyargcount] + tuple(inspect.signature(func).parameters.keys())
+		
+		is_async = '_future' in func_args
+		if is_async:
+			from .CommandList import wrap_gen
+			ref = (ns,cmd)
+			w = wrap_gen(ref)
+			self.exported_commands[ref] = func
+		else:
+			w = func
+		o = self.exports
+		# export right away to exports
+		if ns != '': 
+			if hasattr(o, ns):
+				o = getattr(o, ns) 
+			else:
+				no=type(ns, (), {})()
+				setattr(o, ns, no)
+				o=no
+		setattr(o, cmd, w)
+			
+		return w
+	######################
 	
 	def fullstop(self):
 		self.current_task = None
@@ -135,8 +116,7 @@ class TaskManager:
 		name='init'
 		task = next((t for t in self.tasks if t.name == name), None)
 		if not task:
-			task = self.add_task_func(name, lambda: None)
-		task.prepend_func = self._init_task
+			task = self.add_task_func(name, lambda: self._init_task)
 		
 	def set_task(self, name):
 		self.core_funcs_exported = True
@@ -164,9 +144,6 @@ class TaskManager:
 			ret = self.current_task.run_task(run_this, on_task_done)
 			if ret == False:
 				self.current_task = None
-			else:
-				import builtins
-				builtins.__dict__['_e'] = self.current_task.module
 			return self.current_task
 		else:
 			raise 'task ' + name + ' doesnt exist'
@@ -187,8 +164,9 @@ class TaskManager:
 					instances = task_module._instances if '_instances' in task_module.__dict__ else 1
 					print(col.blue + 'loading task',col.yellow, task_name, col.white)
 					for i in range(instances):
-						task_module = importlib.import_module(task_path)
-						self._export_cmds_to_module(task_module)
+						if i > 0:
+							del sys.modules[task_path]
+							task_module = importlib.import_module(task_path)
 						self.add_task_func(task_name + ('#'+str(i) if instances > 1 else ''), task_module, i)
 	
 	def init_task(self, task_func):
@@ -197,13 +175,16 @@ class TaskManager:
 	
 	def add_task_func(self, name, task_func, instance=0):
 		import types
-		if type(task_func) != types.ModuleType:
-			t=type('',(),{'run': task_func})
+		if type(task_func) == types.FunctionType:
+			t=type(name,(),{'run':task_func})
 		else:
+			d=task_func.__dict__
+			d.update(self.exports.__dict__)
+			d['_i'] = instance
 			t=task_func
-			t.__dict__['_i'] = instance
+			
 		task = Task(name, t, instance)
-		task.exported_cmds = self.exported_cmds
+		task.exported_cmds = self.exported_commands
 		self.tasks.append(task)
 		return task
 	
