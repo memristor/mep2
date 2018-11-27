@@ -607,6 +607,12 @@ __Requirements: blender__
 
 You have to install blender either from ubuntu repository or https://www.blender.org
 
+For Ubuntu:
+```bash
+sudo apt-get update
+sudo apt-get install blender
+```
+
 You need 3 terminals:
 
 Open 1st terminal and type:
