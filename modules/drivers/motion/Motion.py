@@ -102,16 +102,16 @@ class Motion:
 		self.send(x)
 	
 	def curve_cmd(self, x,y,alpha,oa,o):
-		self.send(b'Q' + pack(x) + pack(y) + pack(alpha) + pack(oa) + uchr(o))
+		self.send(b'Q' + p16(x) + p16(y) + p16(alpha) + p16(oa) + p8(o))
 	
 	def move_to_cmd(self, x,y,r=100,o=1):
-		self.send(b'N' + pack(x) + pack(y) + uchr(o) + pack(r))
+		self.send(b'N' + p16(x) + p16(y) + p8(o) + p16(r))
 		
 	def goto_cmd(self, x,y,r=100,o=1):
-		self.send(b'G' + pack(x) + pack(y) + uchr(0) + uchr(o))
+		self.send(b'G' + p16(x) + p16(y) + p8(0) + p8(o))
 		
 	def turn_cmd(self, o):
-		self.send(b'T' + pack(o))
+		self.send(b'T' + p16(o))
 		
 	def stop_cmd(self):
 		self.send(b'S')
@@ -144,13 +144,13 @@ class Motion:
 		
 	@_core.asyn2
 	def speed(self, s):
-		self.send(b'V' + uchr(s))
+		self.send(b'V' + p8(s))
 
 	@_core.module_cmd
 	def forward(self, dist):
 		print(col.yellow, 'forward:', col.white, dist)
 		self.intr()
-		self.send(b'D' + pack(dist) + bytes([0]))
+		self.send(b'D' + p16(dist) + bytes([0]))
 		self.set_direction( 1 if dist > 0 else -1 )
 		#  self.goal_position = _core.position[0]
 	
@@ -190,7 +190,7 @@ class Motion:
 	@_core.module_cmd
 	def absrot(self, a):
 		print('absrot', a)
-		self.send(b'A' + pack(a))
+		self.send(b'A' + p16(a))
 	
 	@_core.module_cmd
 	def curve(self, x,y,alpha,oa,d):
@@ -216,7 +216,7 @@ class Motion:
 		for i in range(3):
 			if new[i] != None:
 				p[i] = new[i]
-		self.send(b'I' + pack(p[0]) + pack(p[1]) + pack(p[2]))
+		self.send(b'I' + p16(p[0]) + p16(p[1]) + p16(p[2]))
 		_core.set_position(*p)
 
 	########## CONFIG ##########
@@ -230,7 +230,7 @@ class Motion:
 		x = int(x)
 		s = 1 if x < 0 else 0
 		# x = abs(x) & 0xffffffff
-		return pack32(x) + bytes([s, decimals])
+		return p32(x) + bytes([s, decimals])
 		
 	def conf_bytes_to_float(self, x):
 		num = l32(x,0)
@@ -250,7 +250,7 @@ class Motion:
 		else:
 			return False
 	
-	use_hash=False
+	use_hash=True
 	
 	@_core.module_cmd
 	def conf_set(self, k, v, dec=4, _sim=False):
@@ -261,7 +261,7 @@ class Motion:
 			fv = float(v)
 			dec = 0 if fv == 0 else 9 - ( int(log10(abs(fv))) + 1 )
 			v = fv
-		key = uchr(self.conf_get_key(k)) if not self.use_hash else p16(simple_hash(k))
+		key = p8(self.conf_get_key(k)) if not self.use_hash else p16(simple_hash(k))
 		to_send = bytearray(self.conf_float_to_bytes(v,dec))
 		if self.use_hash: del to_send[-2]
 		cmd = b'c' if not self.use_hash else b'h'
@@ -274,7 +274,7 @@ class Motion:
 		
 	@_core.module_cmd
 	def conf_get(self, k):
-		key=uchr(self.conf_get_key(k)) if not self.use_hash else p16(simple_hash(k))
+		key=p8(self.conf_get_key(k)) if not self.use_hash else p16(simple_hash(k))
 		cmd = b'C' if not self.use_hash else b'H'
 		msg = cmd + key
 		self.send(msg)

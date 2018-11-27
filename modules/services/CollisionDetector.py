@@ -4,13 +4,8 @@ from core.Util import *
 import math
 
 class CollisionService(Emitter):
-	def __init__(s, *a, **aa):
-		super().__init__(*a,*aa)
-	def on_new_listener(self, lst):
-		pass
-		
-	def on_lose_listener(self, lst):
-		pass
+	def __init__(self, *a):
+		super().__init__(*a)
 
 DANGER = 'danger'
 SAFE = 'safe'
@@ -27,9 +22,10 @@ class CollisionDetector:
 		self.state = SAFE
 	
 	def release(self):
+		self.future = None
+		if self.state == SAFE: return
 		self.state = SAFE
 		self.evt.emit(self.state)
-		self.future = None
 		
 	def on_new_pt(self, pt):
 		if self.state == DANGER or _core.state['direction'] * pt.rel2[0] < 0:
@@ -58,10 +54,11 @@ class CollisionDetector:
 	def emit_danger(self):
 		if self.future is not None:
 			self.future.cancel()
-		
+		self.future = _core.loop.call_later(self.wait_time, self.release)
+		if self.state == DANGER: return
 		self.state = DANGER
 		self.evt.emit(self.state)
-		self.future = _core.loop.call_later(self.wait_time, self.release)
+		
 		
 	def on_new_entity(self, ent):
 		if ent.type != 'robot':

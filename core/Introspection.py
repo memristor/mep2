@@ -7,7 +7,8 @@ import json
 class Introspection:
 	def __init__(self):
 		self.port = 5100
-
+		self.ps=None
+		
 	def run(self):
 		self.tcp = TcpServer(name='introspection_tcp', port=self.port)
 		self.ps = ChunkPacket( self.tcp.get_packet_stream() )
@@ -25,6 +26,7 @@ class Introspection:
 		self.send_json(jobj)
 		
 	def send_entities(self):
+		if not self.ps: return
 		for ent in _core.entities.get_entities():
 			self.send_entity(ent)
 			

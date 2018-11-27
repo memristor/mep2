@@ -1,7 +1,7 @@
 weight=1
 def run():
 	# not necessary but useful for visualising on gui
-	r.conf_set('send_status_interval', 100)
+	r.conf_set('send_status_interval', 10)
 	
 	# natural mathematic coordinate system
 	# x - when robot orientation == 0, robot is looking at positive x axis

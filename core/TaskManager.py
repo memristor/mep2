@@ -130,6 +130,8 @@ class TaskManager:
 			
 			def run_this():
 				# run default func
+				if task.name == 'init' and self._init_task:
+					self._init_task()
 				if self._task_setup_func:
 					self._task_setup_func()
 				ret=task.module.run()

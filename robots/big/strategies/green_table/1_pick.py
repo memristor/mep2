@@ -7,9 +7,9 @@ def run():
 	r.conf_set('enable_stuck', 0)
 
 	colors = ['black', 'green', 'blue', 'orange']
-	s=get(colors, State.combination)
+	r,b=get(colors, State.combination)
 
-	start_rotation = s[0]
+	start_rotation = r
 	
 	def prepare_cross():
 		lift(1)
@@ -32,7 +32,7 @@ def run():
 	#  r.turn(180)
 	
 	#  r.turn(180)
-	build_cubes(s[1])
+	build_cubes(b)
 	addpts(40)	
 	r.forward(-150)
 	

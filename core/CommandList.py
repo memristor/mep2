@@ -131,6 +131,10 @@ def _on(event, callb, **kwargs):
 def _listen(event, callb=None, **kwargs):
 	c = gen_cmd(CMD_LISTEN, event, callb, **kwargs)
 	c.listener = None
+	if callb is None:
+		def wrapper(f, *args, **kwargs):
+			return _listen(event, f, *args, **kwargs)
+		return wrapper
 	return c
 	
 def _task_done():

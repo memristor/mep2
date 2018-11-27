@@ -3,6 +3,7 @@ _last_sim = 1
 _sim_time=0
 class State:
 	pass
+
 class StateBase:
 	
 	def __init__(self, value=None, name=None):
@@ -30,6 +31,7 @@ class StateBase:
 	def inc(self):
 		self.set(self.get()+1)
 	
+	# list operations
 	def append(self, value):
 		self.set(self.get() + [value])
 

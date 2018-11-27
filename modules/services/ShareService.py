@@ -58,7 +58,7 @@ class ShareService:
 	def get_state(self, state_name):
 		return self.states[state_name]
 		
-	@_core.do
+	@_core.asyn2
 	def set_state(self, state_name, value):
 		self.states[state_name] = value
 		p=json.dumps((state_name, self.states[state_name])).encode()

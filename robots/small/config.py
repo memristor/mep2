@@ -151,60 +151,55 @@ _core.export_cmd('addpts', addpts)
 #####################################
 
 ########## TASK INITIALIZATION ##############
-future=None
-sap=None
-state=0
+g=State()
+g.future = None
+g.sleep_future = None
+
+@_core.task_setup_func
 def robot_behavior():
+	
+	@_e._listen('collision')
 	def on_collision(msg):
-		global state, future, sap
-		if state == 0 or msg == 'danger':
+		if msg == 'danger':
 			print(col.yellow, 'got collision', col.white)
-			state = 1
-			#  assert motion.future != None
 			if motion.future:
-				future = motion.future
+				g.future = motion.future
 				motion.future = None
 				motion.stop(_future=None)
 				
 			def sleep_and_suspend():
-				global sap,future
-				future = None
-				# print('suspending')
-				_core.task_manager.get_current_task().suspend()
-				state = 0
-				sap = None
+				g.future = None
+				g.sleep_future = None
+				_core.get_current_task().suspend()
 				
-			if True and not sap:
-				sap = _core.loop.call_later(2, sleep_and_suspend)
-		elif state == 1 and msg == 'safe':
-			state = 0
-			if future:
-				future.runable.redo()
-			else:
-				print('no future')
-			if sap:
-				sap.cancel()
-				sap = None
+			if True and not g.sleep_future:
+				g.sleep_future = _core.loop.call_later(2, sleep_and_suspend)
+		elif msg == 'safe':
+			if g.future:
+				g.future.runable.redo()
+			if g.sleep_future:
+				g.sleep_future.cancel()
+				g.sleep_future = None
 			print('collision safe')
-			
+	
 	def on_stuck():
 		future = motion.future
 		#  motion.future = None
 		task = _core.task_manager.get_current_task()
 		task.pause()
 		#  motion.forward(-100, future=None)
+		@_e._do
 		def wr():
 			_e.sleep(2)
 			_e._do(task.resume)
-		_e._do(wr)
 		print('got stuck')
 		#  if future:
 			#  future.runable.redo()
 	
-	_e._listen('collision', on_collision)
-	#  _e._listen('stuck', on_stuck, _insync=True)	
+	# _e._listen('collision', on_collision)
+	#  _e._listen('stuck', on_stuck, _insync=True)
 
-_core.task_setup_func(robot_behavior)
+
 ##########################################
 
 ###### TIMER #####
@@ -231,13 +226,14 @@ def start_timer():
 ###### ROBOT DEFAULT INITIAL TASK #######
 @_core.init_task
 def init_task():
+	print('running init task')
 	_e.r.send(b'R')
-	_e.r.conf_set('send_status_interval', 100)
+	_e.r.conf_set('send_status_interval', 10)
 	_e.r.conf_set('enable_stuck', 0)
 	_e.r.conf_set('wheel_r1', 68.0)
 	_e.r.conf_set('wheel_r2', 67.25513)
 	_e.r.conf_set('wheel_distance', 252.30)
-
+	_e.set_state('small_points', 0)
 	if not sim:
 		_e.r.conf_set('pid_d_p', 2.75)
 		_e.r.conf_set('pid_d_d', 90)

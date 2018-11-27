@@ -599,3 +599,53 @@ This will create 2 tasks:
 - 2. task will go to point (400,500) and pick something
 
 In theory all tasks can be made from single task, but idea is to use task instancing only when minimal changes exist between instances.
+
+
+# How to visualise
+
+__Requirements: blender__
+
+You have to install blender either from ubuntu repository or https://www.blender.org
+
+You need 3 terminals:
+
+Open 1st terminal and type:
+```bash
+# clone pic-motion-driver repository (do this only once)
+git clone https://github.com/memristor/pic-motion-driver
+cd pic-motion-driver
+# compile simulator (need gcc compiler)
+make sim
+# make virtual can0 device
+sudo make dev dev=can0
+# start motion driver
+./sim can0
+```
+
+Open 2nd terminal and type:
+```bash
+# clone this repository
+git clone https://github.com/memristor/mep2.git (do this only once)
+cd mep2
+./run_blender
+```
+
+Finally 3rd terminal (same directory - mep2), run this (each time you run strategy):
+```bash
+# run helloworld strategy
+ROBOT=helloworld ./main.py helloworld
+# or
+ROBOT=helloworld python3 main.py helloworld
+```
+
+Useful shortcuts for blender are:
+- numpad 7 (top view)
+- numpad 5 (toggle orthogonal projection and back to perspective projection)
+- numpad 0 (jump to camera view and back)
+- rotate with by holding middle mouse button and moving mouse
+- strafe by holding shift + middle mouse button and moving mouse
+
+Read coordinates:
+- to read coordinates, use 3D cursor by clicking left mouse button anywhere on playing field.
+- coordinates are scaled to match those that we use in mep2 (in millimeters)
+

@@ -46,6 +46,7 @@ class Core():
 		self.set_task = self.task_manager.set_task
 		self.export_cmd = self.task_manager.export_cmd
 		self.export_ns = self.task_manager.export_ns
+		self.get_current_task = self.task_manager.get_current_task
 		self.export_cmds()
 		
 		from core.State import StateBase, State, _State
@@ -150,6 +151,7 @@ class Core():
 		signal.signal(signal.SIGINT, on_interrupt)
 		
 		self.loop = asyncio.get_event_loop()
+		self.introspection.run()
 		
 		# run all modules
 		for i in self.modules:
@@ -157,7 +159,7 @@ class Core():
 			if hasattr(i, 'run'):
 				# print('running',i.name)
 				i.run()
-		self.introspection.run()
+		
 		# run main loop
 		self.loop.run_until_complete(self.main_loop())
 	
