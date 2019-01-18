@@ -4,14 +4,13 @@ from core.Util import *
 import math
 
 class CollisionService(Emitter):
-	def __init__(self, *a):
-		super().__init__(*a)
+	pass
 
 DANGER = 'danger'
 SAFE = 'safe'
 	
 class CollisionDetector:
-	def __init__(self, wait_time=1, det_distance=100, det_angle=30, size=[-1500, -1000, 3000, 2000]):
+	def __init__(self, wait_time=1, det_distance=20, det_angle=45, size=[-1500, -1000, 3000, 2000]):
 		self.name = 'CollisionDetectorService'
 		self.det_distance = det_distance
 		self.future = None
@@ -52,19 +51,20 @@ class CollisionDetector:
 			self.emit_danger()
 			
 	def emit_danger(self):
-		if self.future is not None:
-			self.future.cancel()
+		if self.future is not None: self.future.cancel()
 		self.future = _core.loop.call_later(self.wait_time, self.release)
+		# print('should emit danger', self.state)
 		if self.state == DANGER: return
 		self.state = DANGER
 		self.evt.emit(self.state)
 		
+	def on_task_change(self, msg):
+		self.state = SAFE;
 		
 	def on_new_entity(self, ent):
-		if ent.type != 'robot':
-			return
+		if ent.type != 'robot': return
 			
-		if is_poly_in_pie_shape(ent.polygon, _core.get_position()[:2], _core.move_dir_vector(), self.det_distance, self.det_angle):
+		if is_polygon_in_sector(ent.polygon, _core.get_position()[:2], _core.move_dir_vector(), self.det_distance, self.det_angle):
 			self.emit_danger()
 	
 	def is_dangerous(self, pt):
@@ -81,22 +81,24 @@ class CollisionDetector:
 	async def loop(self):
 		while 1:
 			await asyncio.sleep(0.3)
-			if _core.state['state'] == 'R':
-				continue
+			if _core.state['state'] == 'R': continue
 			robots = _core.entities.get_entities('robot')
 			friendly = _core.entities.get_entities('friendly_robot')
 			robots += friendly
 			
 			# check entity map for collision
+			min_dist=max(_core.robot_size)
 			for ent in robots:
-				if point_distance(ent.point, _core.get_position()[:2]) < self.det_distance+200:
-					if is_poly_in_pie_shape(ent.polygon, _core.get_position()[:2], _core.move_dir_vector(), self.det_distance, self.det_angle):
+				if point_distance(ent.point, _core.get_position()[:2]) < min_dist+self.det_distance+20:
+					if is_polygon_in_sector(ent.polygon, _core.get_position()[:2], _core.move_dir_vector(),  min_dist + self.det_distance, self.det_angle):
+						# print('collision !!')
 						self.emit_danger()
 
 	def run(self):
 		self.det_distance += max(_core.robot_size)
-		_core.sensors.on_new_point.append(self.on_new_pt)
-		_core.entities.on_new_entity.append(self.on_new_entity)
+		_core.listen('sensor:new_pt', self.on_new_pt)
+		_core.listen('task:new', self.on_task_change)
+		# _core.listen('entity:new', self.on_new_entity)
 		self.evt = _core.service_manager.register('collision', CollisionService)
 		asyncio.ensure_future(self.loop())
 	

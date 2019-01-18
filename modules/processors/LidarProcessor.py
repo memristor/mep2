@@ -5,8 +5,7 @@ class LidarProcessor:
 		self.tune_angle = tune_angle
 		
 	def on_new_pt(self, pt):
-		if pt.type != 'lidar':
-			return
+		if pt.type != 'lidar': return
 
 		ents = _core.entities.get_entities()
 		poly = polygon_square_around_point(pt.abs2, 500)
@@ -18,4 +17,4 @@ class LidarProcessor:
 		_core.entities.add_entity('robot', 'robot', poly, point=pt.abs2, duration=3.5) 
 		
 	def run(self):
-		_core.sensors.on_new_point.append(self.on_new_pt)
+		_core.listen('sensor:new', self.on_new_pt)

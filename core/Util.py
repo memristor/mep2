@@ -7,23 +7,59 @@ class col:
 	blue='\x1b[34m'
 	white='\x1b[0m'
 
-class Event(list):
-	def __call__(self, *args, **kwargs):
-		for f in self:
-			f(*args, **kwargs)
-
 def _not(func):
 	def not_func(*args, **kwargs):
 		return not func(*args, **kwargs)
 	return not_func
 
-def pick(k,kw,default=None):
+def get_task_param(task,name,default=0):
+	if not hasattr(task.module,name):
+		return default
+	v=getattr(task.module,name)
+	import types
+	if type(v) is types.FunctionType:
+		return v()
+	return v
+
+def get_func_args(func):
+	co = func.__code__
+	import inspect
+	return co.co_varnames[:co.co_argcount+co.co_kwonlyargcount] + tuple(inspect.signature(func).parameters.keys())
+
+def pick(k,kw,default=None, delete=True):
 	c=default
 	if k in kw:
 		c=kw[k]
-		del kw[k]
+		if delete: del kw[k]
 	return c
-		
+	
+td=time.time()
+def dif(p=False):
+	global td
+	now=time.time()
+	d=now-td
+	if p: print('dif:',d)
+	td=now
+	return d
+	
+def load_boost_cpp_module(path, name=None):
+	import platform, importlib, os, inspect
+	frm = inspect.stack()[1]
+	mod = inspect.getmodule(frm[0])
+	_name = mod.__name__
+	if name is None:
+		name = path
+	# bin/<machine>/<module_name>.so
+	module_path = _name + '.bin.' + platform.machine() + '.' + name
+	try:
+		module = importlib.import_module(module_path)
+	except ModuleNotFoundError:
+		mod_path = _name.replace('.','/')
+		print(col.yellow, 'compiling module:', col.white, path)
+		os.system('make -C ' + mod_path)
+		module = importlib.import_module(module_path)
+	return module
+
 # vector rotation
 def rot_vec(vec, rad):
 	# sin(a+b) = asin(a)cos(b) + acos(a)sin(b)
@@ -31,15 +67,19 @@ def rot_vec(vec, rad):
 	#
 	# x2 = xcos(b) - ysin(b)
 	# y2 = ycos(b) + xsin(b)
-	# 
-	#  cos  sin
-	# -sin  cos
 	c = math.cos(rad)
 	s = math.sin(rad)
 	return [vec[0]*c - vec[1]*s, vec[0]*s + vec[1] * c]
 
 def rot_vec_deg(vec, deg):
 	return rot_vec(vec, math.radians(deg))
+rot_pt = rot_vec_deg
+
+def rot_pt_around(pt, around_pt, deg):
+	return add_pt( rot_vec_deg(sub_pt( pt, around_pt ), deg), around_pt )
+
+def vector_from_orient(orient_deg, length):
+	return rot_vec_deg([length,0], orient_deg)
 
 def in_range(v, min_val, max_val):
 	return v >= min_val and v <= max_val
@@ -110,8 +150,12 @@ def is_intersecting_poly(p1, p2, poly):
 
 def polygon_square_around_point(point, rect_size):
 	x,y = point
-	h=rect_size/2
-	return [(x-h,y-h), (x+h,y-h), (x+h,y+h), (x-h,y+h)]
+	a,b = (rect_size/2, rect_size/2) if type(rect_size) is int else (rect_size[0]/2, rect_size[1]/2)
+	return [(x-a,y-b), (x+a,y-b), (x+a,y+b), (x-a,y+b)]
+
+def polygon_rotate(poly, deg):
+	center=polygon_midpoint(poly)
+	return [rot_pt_around(p, center, deg) for p in poly]
 
 def polygon_from_rect(rect):
 	x,y,w,h = rect
@@ -127,7 +171,6 @@ def point_int(pt):
 	return list(map(int, pt))
 	
 class Transform:
-	# pos ([x,y], 20)
 	def __init__(self, start_pos, end_pos):
 		self.start_pos = start_pos
 		self.end_pos = end_pos
@@ -144,23 +187,33 @@ def vector_angle_diff(vec1, vec2):
 	# a.b = |a||b|cos(angle)
 	# angle = acos( a.b/(|a||b|) )
 	denom = math.hypot(*vec1) * math.hypot(*vec2)
-	if denom == 0:
-		return 360
-	return math.acos( dot(vec1,vec2) / denom )
+	if denom == 0: return 2*math.pi
+	val = dot(vec1,vec2) / denom
+	val = max(-1,min(1, val))
+	return math.acos( val )
+
+def normalize_orient(o):
+	o = o % 360
+	return o - 360 if o > 180 else o
+
+def vector_orient(vec):
+	deg = math.degrees(vector_angle_diff(vec, [1,0]))
+	return -deg if vec[1] < 0 else deg
 	
-def is_point_in_pie_shape(point, pie_start_pt, pie_look_vec, pie_range, pie_angle_spread_deg):
-	pie_angle_spread_deg /= 2
-	vec = sub_pt(point, pie_start_pt)
-	if vector_length(vec) > pie_range:
-		return False
-	return abs( vector_angle_diff( pie_look_vec, vec) ) < math.radians(pie_angle_spread_deg)
-		
-def is_poly_in_pie_shape(poly, pie_start_pt, pie_look_vec, pie_range, pie_angle_spread_deg):
-	for i in poly:
-		if is_point_in_pie_shape(i, pie_start_pt, pie_look_vec, pie_range, pie_angle_spread_deg):
-			return True
-	if is_point_in_pie_shape(polygon_midpoint(poly), pie_start_pt, pie_look_vec, pie_range, pie_angle_spread_deg):
-			return True
+def is_point_in_sector(point, sector_point, look_vector, distance, spread_angle_deg):
+	spread_angle_deg /= 2
+	vec = sub_pt(point, sector_point)
+	if vector_length(vec) > distance: return False
+	# return abs( vector_angle_diff( look_vector, vec) ) < math.radians(spread_angle_deg)
+	ang=vector_angle_diff(look_vector, vec)
+	return 0 <= ang <= math.radians(spread_angle_deg)
+
+def is_polygon_in_sector(polygon, *sector):
+	for i in polygon:
+		# print('test pt:', i, ' | ', *sector)
+		if is_point_in_sector(i, *sector): return True
+	if is_point_in_sector(polygon_midpoint(polygon), *sector):
+		return True
 	return False
 
 # Axis Aligned Bounding Box
@@ -172,8 +225,7 @@ class AABB:
 	@staticmethod
 	def from_polygon(poly):
 		aabb = AABB(*poly[0])
-		for i in poly:
-			aabb.put(*i)
+		for i in poly: aabb.put(*i)
 		return aabb
 	
 	def put(self, x,y=None):
@@ -187,7 +239,6 @@ class AABB:
 	
 	def get_size(self):
 		return [self.x[1] - self.x[0], self.y[1] - self.y[0]]
-
 
 def nice_hex(s, spaces=4):
 	import binascii

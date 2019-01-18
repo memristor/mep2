@@ -1,0 +1,12 @@
+def run():
+	# r.accel(2000)
+	# r.speed(100)
+	# r.goto(1000,0)
+	# sleep(0.1)
+	# r.goto(1000,-1000)
+	# sleep(0.1)
+	# r.goto(0,-1000)
+	# sleep(0.1)
+	# r.goto(0,0)
+	r.speed(40)
+	r.curve(0, 200, 360, -1, -1)

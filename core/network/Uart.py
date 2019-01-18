@@ -1,8 +1,6 @@
-#!/usr/bin/python3
 import asyncio
 import serial
-from .Stream import Stream
-from .packet.PacketStream import PacketStream
+from core.network.Stream import Stream
 class Uart:
 	def __init__(self, name='uart', baud=57600, dev='/dev/ttyAMA0'):
 		self.name = name

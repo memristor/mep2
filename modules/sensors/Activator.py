@@ -10,7 +10,10 @@ class Activator:
 	@_core.module_cmd
 	def wait_activator(self):
 		print('waiting for activator')
-		
+	
+	def export_cmds(self):
+		_core.export_cmd('wait_activator', self.wait_activator)
+	
 	def on_recv(self, pkt):
 		if self.future and pkt[0] == 0:
 			self.future.set_result(1)

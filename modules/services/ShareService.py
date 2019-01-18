@@ -4,7 +4,7 @@ SHARE_EVENT = 3
 SHARE_STATE = 4
 
 import json, asyncio
-from core.Entities import EntityPoint
+from core.Entities import Entity
 from core.Util import *
 from core.network.packet.ChunkPacket import *
 class ShareService:
@@ -13,7 +13,6 @@ class ShareService:
 		self.name = 'share service'
 		self.states = {}
 		self.set_packet_stream(packet_stream)
-		self.on_state_change = Event()
 		
 	def on_recv(self, pkt):
 		if not pkt: return
@@ -31,7 +30,7 @@ class ShareService:
 		elif pkt[0] == SHARE_STATE:
 			p=json.loads(pkt[1:])
 			self.states[ p[0] ] = p[1]
-			self.on_state_change(p[0], p[1])
+			_core.emit('share:state_change', p[0], p[1])
 			print('rcv state', p)
 			
 	def set_packet_stream(self, ps):
@@ -42,7 +41,7 @@ class ShareService:
 	async def loop(self):
 		while True:
 			await asyncio.sleep(0.5)
-			ent = EntityPoint('friendly_robot', _core.robot, _core.get_position(),
+			ent = Entity('friendly_robot', _core.robot, _core.get_position(),
 				polygon_square_around_point(_core.get_position()[:2], 300), 0.2)
 			self.ps.send(bytes([SHARE_ENTITY]) + json.dumps(ent.__dict__).encode())
 			
@@ -53,7 +52,7 @@ class ShareService:
 		
 	def run(self):
 		asyncio.ensure_future(self.loop())
-		_core.entities.on_new_entity.append(self.on_new_entity)
+		_core.listen('entity:new', self.on_new_entity)
 		
 	def get_state(self, state_name):
 		return self.states[state_name]

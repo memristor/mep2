@@ -1,46 +1,42 @@
 from .Util import *
 import time
-class EntityPoint:
+class Entity:
 	def __init__(self, entity_type, entity_name, point, polygon, duration):
 		self.type = entity_type
 		self.name = entity_name
-		#  self.point = point
-		#  self.polygon = polygon # list of tuples [(x,y),(x,y),...]
 		self.creation_duration = duration
-		
+		self.deleted = False
 		self.recreate(polygon, point)
 		
 	def recreate(self, polygon=None, point=None):
-		if polygon:
-			self.polygon = polygon
-		if not point:
-			self.point = polygon_midpoint(self.polygon)
-		else:
-			self.point = point
+		if polygon: self.polygon = polygon
+		self.point = polygon_midpoint(self.polygon) if not point else point
 		self.creation_time = time.time()
 		self.duration = self.creation_duration
 		self.deleted = False
 		
 	def refresh(self, polygon=None, point=None):
 		self.recreate(polygon, point)
-		_core.entities.on_refresh_entity(self)
+		_core.emit('entity:refresh', self)
 		
 class Entities:
 	def __init__(self):
 		self.entities = []
-		self.on_new_entity = Event()
-		self.on_refresh_entity = Event()
-		self.on_remove_entity = Event()
 		self.time = time.time()
 		self.last_id = 0
+	
+	def update_entity(self, entity_type, entity_name, polygon, point=None, duration=0):
+		ent=self.get_entity_by_name(entity_name)
+		if not ent:
+			self.add_entity( entity_type, entity_name, polygon, point, duration )
+		else:
+			# print('refreshing ent', ent.name, ent.point)
+			ent.refresh( polygon, point )
+			
 		
 	def add_entity(self, entity_type, entity_name, polygon, point=None, duration=0):
-		#  if not point:
-			#  point = polygon_midpoint(polygon)
-		e = EntityPoint(entity_type, entity_name, point, polygon, duration)
+		e = Entity(entity_type, entity_name, point, polygon, duration)
 		point = e.point
-		#  print(e.aabb, 's',aabb.get_size())
-		
 		if entity_type == 'friendly_robot':
 			friendly = self.get_entities(entity_type)
 			if friendly:
@@ -48,27 +44,28 @@ class Entities:
 		
 		if entity_type == 'robot':
 			closest, dist = self.get_closest_entity_to_point(point, entity_type)
-			if dist < 400:
-				print('refreshing')
+			if dist < 150:
+				# print('refreshing')
 				closest.refresh(polygon, point)
 				return
-				
+		
 		aabb = AABB.from_polygon(polygon)
 		e.aabb = [] + point + aabb.get_size()
 		e.id = self.last_id
 		self.last_id += 1
 		self.entities.append(e)
-		self.on_new_entity(e)
-		#  print('newent', point)
+		_core.emit('entity:new', e)
 		
 	def get_entities(self, entity_type=None, last_time=0):
 		self.refresh()
-		if entity_type != None:
-			ents = list(filter(lambda x: entity_type == x.type, self.entities))
+		if entity_type is not None:
+			return list(filter(lambda x: entity_type == x.type, self.entities))
 		else:
-			ents = self.entities
-		#  print('get entities', ents)
-		return ents
+			return self.entities
+	
+	def get_entity_by_name(self, entity_name):
+		ents=self.get_entities()
+		return next((i for i in ents if i.name == entity_name), None)
 	
 	def get_closest_entity_to_point(self, point, ent_type):
 		ents = self.get_entities(ent_type)
@@ -77,8 +74,7 @@ class Entities:
 		for ent in ents:
 			dist = point_distance(point, ent.point)
 			if dist < min_dist:
-				min_dist = dist
-				min_ent = ent
+				min_dist, min_ent = dist, ent
 		return (min_ent, min_dist)
 	
 	def get_entities_in_arc(self, arc_center, center_angle, arc_size, filter_func=None):
@@ -100,9 +96,11 @@ class Entities:
 		return t-past
 		
 	def remove_entity(self, entity):
+		if type(entity) is str:
+			entity = next((e for e in self.entities if entity == e.name), None)
+			if entity is None: return
 		entity.deleted = True
-		print('removing entity')
-		self.on_remove_entity(entity)
+		_core.emit('entity:remove', entity)
 		self.entities.remove(entity)
 		
 	def refresh(self):

@@ -2,7 +2,6 @@ from .PacketStream import *
 import struct 
 
 class ChunkPacket(PacketStream):
-	
 	def __init__(self, stream):
 		self.stream = stream
 		stream.recv = self.on_recv
@@ -12,7 +11,6 @@ class ChunkPacket(PacketStream):
 		
 	def on_recv(self, pkt):
 		if self.len == 0 and len(pkt) >= 2:
-			#  print('on len', pkt)
 			self.len = struct.unpack('>h', pkt[:2])[0]
 			pkt = pkt[2:]
 			
@@ -22,8 +20,7 @@ class ChunkPacket(PacketStream):
 			data = bytes(self.buf[:m])
 			self.buf = self.buf[m:]
 			
-			if self.recv:
-				self.recv(data)
+			if self.recv: self.recv(data)
 				
 			self.len -= m
 			if self.len == 0 and self.buf:
@@ -36,14 +33,12 @@ class ChunkPacket(PacketStream):
 		except:
 			print('chunk fail')
 			return
-		
 		self.stream.send(chunk)
 
 	@staticmethod
 	def chunks_from_list(lst):
 		chunks=bytes()
-		for i in lst:
-			chunks += bytes([len(i)]) + i
+		for i in lst: chunks += bytes([len(i)]) + i
 		return chunks
 		
 	@staticmethod

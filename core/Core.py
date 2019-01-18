@@ -1,12 +1,12 @@
 
 import asyncio
-from .Util import Transform, rot_vec_deg, mul_pt, col, pick
+from .Util import Transform, rot_vec_deg, mul_pt, col, pick, point_distance, sub_pt
 import functools
 class Core():
 	def __init__(self, robot):
 		self.robot=robot
 		self.quit = False
-		
+		self.c_while = 0
 		import builtins
 		
 		# check if its already initialized anywhere
@@ -29,11 +29,17 @@ class Core():
 		self.task_manager = TaskManager()
 		self.introspection = Introspection()
 		
+		import signal
+		def on_interrupt(a,b): 
+			self.introspection.close()
+			exit(0)
+		signal.signal(signal.SIGINT, on_interrupt)
+		
 		self.state = {'direction':1, 'state':'I'}
 		self.modules = []
 		self.transform = Transform(([0,0],0),([0,0],0))
 		
-		self.robot_size = [200,100]
+		self.robot_size = [300,300]
 		
 		setattr(builtins, '_e', self.task_manager.exports)
 		
@@ -47,33 +53,51 @@ class Core():
 		self.export_cmd = self.task_manager.export_cmd
 		self.export_ns = self.task_manager.export_ns
 		self.get_current_task = self.task_manager.get_current_task
+		self.set_scheduler = self.task_manager.set_scheduler
+		
+		self.emit = self.service_manager.emit
+		self.listen_once = self.service_manager.listen_once
 		self.export_cmds()
 		
 		from core.State import StateBase, State, _State
 		self.position = StateBase(value=[0,0]) # robot position
 		self.angle = StateBase(value=0) # robot angle
 		setattr(builtins,'State', State)
+		State.conf=type('config',(),{})()
 		setattr(builtins,'_State', _State)
 		import core.Task
 		core.Task.StateBase = StateBase
+	
+	def listen(self, name, func=None):
+		l=self.service_manager.listen
+		return (lambda func: l(name, func)) if not func else l(name, func)
 	
 	def set_position(self, x,y,o):
 		self.position.set([x,y])
 		self.angle.set(o)
 	
-	def look_vector(self):
-		return rot_vec_deg([1,0], self.get_position()[2])
+	def look_vector(self, s=1):
+		return rot_vec_deg([s,0], self.get_position()[2])
+		
+	def vector_to(self, pt):
+		return sub_pt( pt, self.get_position()[:2] )
+		
+	def distance_to(self, pt):
+		return point_distance( self.get_position()[:2], pt )
 	
 	def move_dir_vector(self):
 		return mul_pt( self.look_vector(), self.state['direction'] )
 	
 	def add_module(self, module):
+		if not module: return
 		if type(module) == list:
 			for i in module:
 				self.add_module(i)
 			return
 		if module not in self.modules:
 			self.modules.append(module)
+		else:
+			raise Exception('module ', module.name, 'already exists')
 		
 	def get_module_names(self):
 		return [x.name for x in self.modules]
@@ -81,11 +105,13 @@ class Core():
 	def get_modules(self):
 		return self.modules
 		
+	def get_module(self, name):
+		return next((mod for mod in self.modules if mod.name == name), None)
+		
 	def load_strategy(self, strategy_name):
-		tm = self.task_manager
-		tm.load_tasks(self.robot, strategy_name)
-		tm.setup_init_task()
-		tm.set_task('init')
+		self.task_manager.load_tasks(self.robot, strategy_name)
+		self.task_manager.setup_init_task()
+		self.task_manager.set_task('init')
 		
 	def fullstop(self):
 		for module in self.modules:
@@ -93,36 +119,63 @@ class Core():
 				module.fullstop()
 		self.task_manager.fullstop()
 		self.quit = True
+		
+	def expose_task_commands(self):
+		import inspect
+		frm = inspect.stack()[1]
+		mod = inspect.getmodule(frm[0])
+		print('called from:',mod.__name__)
+		self.task_manager.expose_task_commands(mod)
 	
 	def export_cmds(self):
+		
+		@self.export_cmd('sleep')
 		def sleep_cmd(s,_sim=False,_future=None):
 			if _sim: return s
-			self.loop.call_later(s, lambda: _future.set_result(1))
-		self.export_cmd('sleep', sleep_cmd)
+			# print('sleeping')
+			c=self.loop.call_later(s, lambda: _future.set_result(1))
+			_future.on_cancel.append(c.cancel)
+		
 		from contextlib import contextmanager
+		
 		@self.export_cmd
 		@contextmanager
 		def disabled(name):
+			# with gen_block((lambda: _e._unlisten(name)), (lambda: _e._listen(name))):
 			_e._unlisten(name)
 			yield
 			_e._listen(name)
 		
-		
+		@self.export_cmd
+		@contextmanager
+		def _while(cond):
+			self.c_while += 1
+			l = '__local'+str(self.c_while)
+			l2 = l+'skip'
+			_e._L(l)
+			fut=_e._ref()
+			def _els(): _e._goto(l2, ref=fut)
+			_e._if(cond, _else=_els )
+			yield
+			_e._goto(l)
+			_e._L(l2)
+			
 		@self.export_cmd
 		@_core.do
 		def _print(*args):
-			if not _e._sim:
-				print(*args)
+			if not _e._sim: print(*args)
+		
+		@self.export_cmd
+		@_core.do
+		def _emit(*args, **kwargs):
+			_core.service_manager.emit(*args, **kwargs)
 		
 	def get_position(self):
 		return self.position.get() + [self.angle.get()]
 	
-	def get_vector(self):
-		pass
-	
 	def set_robot_size(self, x,y):
 		self.robot_size = [x,y]
-	
+		
 	def load_config(self):
 		import os, sys, importlib
 		conf_dir = 'robots/' + self.robot
@@ -134,34 +187,29 @@ class Core():
 					print('loading config for robot: ['+col.green, self.robot, col.white+']')
 					config_filename = fullpathname[:-3].replace('/','.')
 					config_module = importlib.import_module(config_filename)
-					
+		self.emit('config:done')
+		self.loop = asyncio.get_event_loop()
+		self.introspection.run()
+		# run all modules
+		for i in self.modules:
+			if hasattr(i, 'run'): i.run()
 		print('loaded modules:', '\n\t' + '\n\t'.join([col.yellow + x.name + col.white + ' : class ' + type(x).__name__ for x in self.get_modules()]))
+		
 	
 	async def main_loop(self):
 		while not self.quit:
-			await asyncio.sleep(0.001)
+			await asyncio.sleep(0.00005)
+			# await asyncio.sleep(0)
 			self.task_manager.run_cycle()
 	
 	## runs main_loop
 	def run(self):
-		def on_interrupt(a,b):
-			exit(0)
-		
-		import signal
-		signal.signal(signal.SIGINT, on_interrupt)
-		
 		self.loop = asyncio.get_event_loop()
-		self.introspection.run()
-		
-		# run all modules
-		for i in self.modules:
-			i.core = self
-			if hasattr(i, 'run'):
-				# print('running',i.name)
-				i.run()
-		
 		# run main loop
 		self.loop.run_until_complete(self.main_loop())
+	
+	def spawn(self, *args, **kwargs):
+		return self.task_manager.get_current_task().spawn(*args, **kwargs)
 	
 	# decorators
 	def do(self, f):
@@ -182,13 +230,13 @@ class Core():
 		@functools.wraps(f)
 		def wrapper(*args, _future=None, **kwargs):
 			# set future to class instance
-			cls = args[0]
-			cls.future = _future
-			if cls.future:
-				if hasattr(cls, 'on_cancel'):
-					cls.future.set_on_cancel(cls.on_cancel)
+			inst = args[0]
+			if _future:
+				inst.future = _future
+				# if class has on_cancel method, call it when cancelling future
+				if hasattr(inst, 'on_cancel'):
+					inst.future.set_on_cancel(inst.on_cancel)
 				import time
-				cls.future.time = time.monotonic()
-			
+				inst.future.time = time.monotonic()
 			return f(*args, **kwargs)
 		return wrapper

@@ -10,17 +10,9 @@ class SensorPoint:
 		self.abs2 = None
 		self.duration = duration
 		
-		
 class Sensors:
 	def __init__(self):
 		self.sensor_data = []
-		self.on_new_point = Event()
-	
-	#
-	# relative position is:
-	#  ^
-	#  y
-	# ROBOT-x->
 	# robot is looking in positive X axis direction
 	def add_sensor_point(self, sensor_type, sensor_name, rel_start, rel_end, duration=100):
 		p = SensorPoint(sensor_type, sensor_name, rel_start, rel_end, duration)
@@ -34,7 +26,7 @@ class Sensors:
 		if not is_in_rect(p.abs2, [-1500, -1000, 3000, 2000]):
 			return
 		self.sensor_data.append(p)
-		self.on_new_point(p)
+		_core.emit('sensor:new_pt', p)
 		
 	#  def get_sensor_data(self, sensor_name, timestamp=0):
 		#  return list(filter(lambda x: sensor_name == x.sensor_name))

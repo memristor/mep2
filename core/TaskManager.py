@@ -1,35 +1,45 @@
 
 import asyncio
 from core.Task import *
-
 class TaskManager:
 	def __init__(self):
 		self.current_task = None
 		self.tasks = []
-		self.core_funcs_exported = False
 		
 		self.scheduler=None
 		self._init_task = None
 		self.cached_exported_cmds = None
-		self._task_setup_func = None
 		self._export_ns=''
+		self._next_task = None
+		self.scheduling = None
 		
 		self.exports = type('exports', (), {'_sim': False})()
 		self.exported_commands = {}
 		
 		from core.schedulers.BasicScheduler import BasicScheduler
 		self.set_scheduler(BasicScheduler())
-		
 		self.init_export()
 		
-	
 	def set_scheduler(self, scheduler):
 		self.scheduler = scheduler
-		self.scheduler.task_manager = self
 		
 	def schedule_task(self):
+		print(col.yellow,'scheduling next task',col.white)
+		if self.scheduling: self.scheduling.cancel()
+		if self._next_task:
+			next_task = self._next_task
+			self._next_task = None
+			if self.set_task(next_task) != False: return
+		_core.task_manager.print_task_states()
+		# if self.scheduler and self.get_pending_tasks():
 		if self.scheduler:
-			self.scheduler.pick_task()
+			r=self.scheduler.pick_task(_core.task_manager.get_ready_tasks())
+			if not r and self.get_pending_tasks(): 
+				print('failed to pick task')
+				self.scheduling = _core.loop.call_later(0.5, self.schedule_task)
+			
+		if not self.get_pending_tasks():
+			_core.emit('strategy:done')
 	
 	def get_current_task(self):
 		return self.current_task
@@ -37,8 +47,11 @@ class TaskManager:
 	def get_tasks(self):
 		return self.tasks
 	
-	def get_pending_tasks(self):
+	def get_ready_tasks(self):
 		return list(filter(lambda t: t.state.get() in (PENDING,DENIED), self.tasks))
+		
+	def get_pending_tasks(self):
+		return list(filter(lambda t: t.state.get() in (PENDING,DENIED,SUSPENDED), self.tasks))
 	
 	def has_task(self, name):
 		task = self.get_task(name)
@@ -48,11 +61,10 @@ class TaskManager:
 		task = next((t for t in self.tasks if t.name == name), None)
 		return task
 	
-	
 	##### EXPORT #####
 	def init_export(self):
 		ns=''
-		for k,w in meta_chain_funcs.items():
+		for k,w in meta_funcs.items():
 			setattr(self.exports, k, w)
 	
 	def export_ns(self, ns=None):
@@ -69,11 +81,8 @@ class TaskManager:
 				return wrapper
 			else:
 				cmd,func=cmd.__name__,cmd
-				
-		co = func.__code__
-		import inspect
-		func_args = co.co_varnames[:co.co_argcount+co.co_kwonlyargcount] + tuple(inspect.signature(func).parameters.keys())
-		
+		from .Util import get_func_args
+		func_args = get_func_args(func)
 		is_async = '_future' in func_args
 		if is_async:
 			from .CommandList import wrap_gen
@@ -92,16 +101,12 @@ class TaskManager:
 				setattr(o, ns, no)
 				o=no
 		setattr(o, cmd, w)
-			
 		return w
 	######################
 	
 	def fullstop(self):
 		self.current_task = None
 		
-	def set_task_setup_func(self, func):
-		self._task_setup_func = func
-	
 	def print_task_states(self):
 		states={
 			'pending': col.yellow + ' PENDING' + col.white,
@@ -113,42 +118,58 @@ class TaskManager:
 			print('task', task.name, states[task.state.get()])
 	
 	def setup_init_task(self):
-		name='init'
-		task = next((t for t in self.tasks if t.name == name), None)
+		task = next((t for t in self.tasks if t.name == 'init'), None)
 		if not task:
-			task = self.add_task_func(name, lambda: self._init_task)
-		
+			def run_this():
+				_core.emit('task:new', 'init')
+			self.add_task_func('init', run_this)
+
+	def set_next_task(self, name):
+		self._next_task = name
+
 	def set_task(self, name):
-		self.core_funcs_exported = True
 		if not name:
 			self.current_task = None
 			return
 		task = next((t for t in self.tasks if t.name == name), None)
 		if task:
+			if task.state.get() == DONE:
+				self.current_task = None
+				return False
 			print('running task', col.yellow, name, col.white)
 			self.current_task = task
 			
 			def run_this():
 				# run default func
-				if task.name == 'init' and self._init_task:
-					self._init_task()
-				if self._task_setup_func:
-					self._task_setup_func()
-				ret=task.module.run()
-				if ret == False:
-					return False
-				
+				_core.emit('task:new', task.name)
+				if task.module.run() is False: return False
+			
 			def on_task_done():
-				print('task state:', self.current_task.state.get())
-				self.current_task = None
-				self.schedule_task()
-				
+				if Task.is_sim: return
+				state = self.current_task.state.get()
+				print('task state:', self.current_task.name, state)
+				if self.current_task:
+					prev = self.current_task
+					self.current_task = None
+					if state == DONE:
+						self.schedule_task()
+					elif state == SUSPENDED:
+						print(col.red,'suspended task', col.yellow + prev.name + col.white)
+						# print(col.red, 'cur is suspended', col.white)
+						# try next pending task
+						self.schedule_task()
+						# unsuspend suspended task
+						prev.state.set(PENDING)
+						# if no pending task selected try again suspended task
+						# print(col.yellow,'trying again suspended task', col.white)
+						if not self.current_task or self.current_task == prev:
+							self.schedule_task()
 			ret = self.current_task.run_task(run_this, on_task_done)
 			if ret == False:
 				self.current_task = None
 			return self.current_task
 		else:
-			raise 'task ' + name + ' doesnt exist'
+			return False
 
 	def load_tasks(self, robot_name, strategy_name):
 		import os, sys, importlib
@@ -171,17 +192,24 @@ class TaskManager:
 							task_module = importlib.import_module(task_path)
 						self.add_task_func(task_name + ('#'+str(i) if instances > 1 else ''), task_module, i)
 	
+	
+	def set_task_setup_func(self, func):
+		_core.listen('task:new', lambda task: func() if task != 'init' else None)
+		
 	def init_task(self, task_func):
-		self._init_task = task_func
+		_core.listen('task:new', lambda task: task_func() if task == 'init' else None)
 	set_init_task = init_task
+	
+	def expose_task_commands(self, o):
+		o.__dict__.update(self.exports.__dict__)
 	
 	def add_task_func(self, name, task_func, instance=0):
 		import types
 		if type(task_func) == types.FunctionType:
 			t=type(name,(),{'run':task_func})
 		else:
+			self.expose_task_commands(task_func)
 			d=task_func.__dict__
-			d.update(self.exports.__dict__)
 			d['_i'] = instance
 			t=task_func
 			
@@ -191,18 +219,7 @@ class TaskManager:
 		return task
 	
 	def run_cycle(self):
-		if self.current_task != None:
+		if self.current_task:
 			self.current_task.run_cycle()
 			# print('run_cycle: cur task', self.current_task)
-			if self.current_task and self.current_task.state.get() == SUSPENDED:
-				# print(col.red, 'cur is suspended', col.white)
-				prev = self.current_task
-				# try next pending task
-				self.schedule_task()
-				# unsuspend suspended task
-				prev.state.set(PENDING)
-				
-				# if no pending task selected try again suspended task
-				print(col.yellow,'trying again suspended task', col.white)
-				if not self.current_task or self.current_task == prev:
-					self.schedule_task()
+			

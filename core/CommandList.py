@@ -2,22 +2,61 @@ from contextlib import contextmanager
 from .Debug import *
 
 class CommandList:
-	def __init__(self):
+	def __init__(self, commands=None):
 		self.commands=[]
 		self.labels=[]
-		self.on_cancel=None
+		if commands:
+			if callable(commands):
+				with self.save(self):
+					commands()
+			elif isinstance(commands, CommandList):
+				self += commands
+			elif type(commands) is list:
+				self.commands += commands
 		
 	def __add__(self, o):
 		# add an offset to labels
-		self.labels += [(l[0], l[1] + len(self.commands)) for l in o.labels]
+		self.labels += [(l[0] + len(self.commands) if type(l[0]) is int else l[0], 
+						l[1] + len(self.commands), l[2]) for l in o.labels]
 		self.commands += o.commands
-
-current_command_list = CommandList()
+		
+	def add_label(self, label_name):
+		self.labels.append( (label_name, len(self.commands), None) )
+		
+	def add_block(self, block_range):
+		self.labels.append( block_range )
+	
+	def add_cmd(self, cmd):
+		self.commands.append(cmd)
+		
+	def clear(self):
+		self.commands.clear()
+		self.labels.clear()
+		
+	@staticmethod
+	@contextmanager
+	def save(cl):
+		_save = CommandList.current
+		CommandList.current = cl
+		yield
+		CommandList.current = _save
+		
+	@staticmethod
+	def new():
+		CommandList.current = CommandList()
+		return CommandList.current
+	@staticmethod
+	def set(cmdlist): CommandList.current = cmdlist
+	@staticmethod
+	def get(): return CommandList.current
+	@staticmethod
+	def get_pos(): return len(CommandList.current)
 
 # ----- meta cmds ------
 
 CMD_DO = '_do'
 CMD_IF = '_if'
+CMD_ELIF = '_elif'
 CMD_ELSE = '_else'
 CMD_END_IF = '_end_if'
 CMD_WHILE = '_while'
@@ -34,209 +73,171 @@ CMD_UNLISTEN = '_unlisten'
 CMD_WAIT = '_wait'
 CMD_NEXT_CMD = '_next_cmd'
 CMD_GOTO = '_goto'
+CMD_REF = '_ref'
 CMD_THIS = '_this'
+CMD_WAKE = '_wake'
+CMD_EMIT = '_emit'
+CMD_WHILE = '_while'
+CMD_PICK_BEST = '_pick_best'
+CMD_WAKE = '_wake'
 
-class Command:
-	def __init__(s,name='',params={}, command_list=CommandList()):
+class Command(CommandList):
+	def __init__(s, name='', params={}, command_list=None):
+		super().__init__(command_list)
 		s.name=name
 		s.params=params
 		s.args = ()
 		s.kwargs={}
-		s.commands = CommandList().commands + command_list.commands
-		s.labels = command_list.labels
-		assert s.commands is not current_command_list.commands
-		s.overrides=[]
-		s.runnables = []
-		
+		s.threads = []
+
+	#TODO: remove
 	def __repr__(s):
-		global tl
-		tl += 1
-		msg = tabs() + '----'+\
-			tabs() + 'Command ' + str(s.name) +\
-			tabs() + 'params: ' + str(s.params.keys()) +\
-			tabs() + 'commands: ' + str(s.commands) +\
-			tabs() + '----\n'
-		tl -= 1
+		with inc_tab():
+			msg = tabs() + '=========='+\
+				tabs() + 'Command ' + str(s.name) +\
+				tabs() + 'commands: ' + str(s.commands) +\
+				tabs() + '==========='+tabs()
 		return msg
 
-@contextmanager
-def save_command_list(r):
-	global current_command_list
-	save = current_command_list
-	current_command_list = CommandList()
-	yield
-	r += current_command_list
-	current_command_list = save
-
-def new_command_list():
-	global current_command_list
-	current_command_list = CommandList()
-	
-def set_command_list(c):
-	global current_command_list
-	current_command_list = c
-
-def get_command_list():
-	global current_command_list
-	return current_command_list
-
-from core.Future import Future
 def gen_cmd(name, *args, **kwargs):
-	global current_command_list
-	if type(name) is not tuple:
-		name = ('', name)
+	if type(name) is not tuple: name = ('', name)
 	cmd = Command(name)
-
 	cmd.kwargs = dict(kwargs)
 	cmd.args = args
 	cmd.params = kwargs
 	
 	# generate future and make <-> link
+	from core.Future import Future
 	future = Future()
 	future.cmd = cmd
 	cmd.future = future
 	
-	current_command_list.commands.append(cmd)
-	return cmd.future
+	CommandList.get().add_cmd(cmd)
+	return future
+	
+def gen_cmd_func(name, index, *args, **kwargs):
+	import types
+	g=gen_cmd(name, *args, **kwargs)
+	if not args or type(args[0]) != types.FunctionType:
+		def set_func(func): 
+			g.cmd.args = list(g.cmd.args)
+			g.cmd.args.insert(index, func)
+		g.call = set_func
+	return g
 
-def _this():
-	return gen_cmd(CMD_THIS)
-
-def _task_suspend():
-	gen_cmd(CMD_TASK_SUSPEND)
-
-#TODO: remove?
-def _return():
-	gen_cmd(CMD_RETURN)
-
-def _do(func, *args, **kwargs):
-	return gen_cmd(CMD_DO, func, *args, **kwargs)
-
-def _spawn(func, *args, **kwargs):
-	return gen_cmd(CMD_SPAWN, func, *args, **kwargs)
+def wrap_gen(name): return lambda *args, **kwargs: gen_cmd(name, *args, **kwargs)
+def wrap_gen_func(name, index=0): return lambda *args, **kwargs: gen_cmd_func(name, index, *args, **kwargs)
 
 def _label(label_name):
-	current_command_list.labels.append( (label_name, len(current_command_list.commands)) )
+	CommandList.get().add_label(label_name)
 	gen_cmd(CMD_LABEL, label_name)
-	
-def _sync(*args,**kwargs):
-	if type(args[0]) is Future or type(args[0]) == str:
-		gen_cmd(CMD_SYNC, *args, **kwargs)
-	else:
-		raise('bad params')
-	
-def _on(event, callb, **kwargs):
-	gen_cmd(CMD_ON, event, callb, **kwargs)
-	
-def _listen(event, callb=None, **kwargs):
-	c = gen_cmd(CMD_LISTEN, event, callb, **kwargs)
-	c.listener = None
-	if callb is None:
-		def wrapper(f, *args, **kwargs):
-			return _listen(event, f, *args, **kwargs)
-		return wrapper
-	return c
-	
-def _task_done():
-	gen_cmd(CMD_TASK_DONE)
-
-def _unlisten(handle):
-	gen_cmd(CMD_UNLISTEN, handle)
-	
-def _next_cmd():
-	gen_cmd(CMD_NEXT_CMD)
-	
-def _goto(*args):
-	gen_cmd(CMD_GOTO, *args)
 
 ####### IF #######
-IF_NONE = 0
-IF_ELIF = 1
-IF_ELSE = 2
-a_if = IF_NONE
-a_start_idx = 0
-
 TAG_IF = '_if'
 TAG_ELSE = '_else'
 TAG_ELIF = '_elif'
 
-def wrap_gen(name):
-	def wrapper(*args, **kwargs):
-		return gen_cmd(name, *args, **kwargs)
-	return wrapper
+class Block:
+	def __init__(self):
+		self.active = False
+	def start(self):
+		if not self.active:
+			self.cl = CommandList.get()
+		self.active = True
+		return CommandList.new()
+	def stop(self):
+		self.active = False
+		cmds = CommandList.get()
+		CommandList.set(self.cl)
+		return cmds
+	def __enter__(self):
+		pass
+	def __exit__(self, *exc):
+		self.stop()
 
-def _if(condition_func, _then=None, _else=None):
-	global a_if, a_start_idx, current_command_list
-	if _then == None and _else == None:
-		a_if = IF_ELIF
-		a_start_idx = len(current_command_list.commands)
-		fut = gen_cmd(CMD_IF, _then=None, _else=None)
-		fut.cmd.params[TAG_ELIF] = [[condition_func,None]]
-		#  print('if cmd', current_command_list.commands[a_start_idx])
-	else:
-		#  print('genif')
-		e = [[condition_func, _then]]
-		#  print(e)
-		gen_cmd(CMD_IF, _elif=e, _else=_else)
+class BlockParallel(Block):
+	def __init__(self):
+		super().__init__()
 	
-# not tested
-def _elif(condition_func):
-	global a_if, a_start_idx, current_command_list
-	assert a_if == IF_IF, 'no active if'
-	# if a_if != IF_IF:
+	def __exit__(self, *exc):
+		cmds = self.stop()
+		for i in cmds.commands:
+			_do(lambda: i)
+		
+	def _parallel(self, cond):
+		self.start()
+		return self
 
-	cmd = current_command_list.commands[a_start_idx-1]
+class BlockPickBest(Block):
+	def __init__(self):
+		super().__init__()
 	
-	# past condition
-	# pop if
-	elsif = current_command_list.commands[a_start_idx:]
-	del current_command_list.commands[a_start_idx:]
-	cmd.params[TAG_ELIF][-1][1] = elsif
+	def __exit__(self, *exc):
+		cmds = self.stop()
+		fut = gen_cmd(CMD_PICK_BEST)
+		fut.cmd += cmds
+		
+	def _pick_best(self):
+		self.start()
+		return self
+		
+class BlockIf(Block):
+	def __init__(self):
+		super().__init__()
+		self.state = 0
+		self.elifs = []
+		self.cmd = None
+
+	def _if(self, condition_func, _then=None, _else=None):
+		if _then == _else == None:
+			self.state = TAG_ELIF
+			fut = gen_cmd(CMD_IF, _then=None, _else=None)
+			self.cmd = fut.cmd
+			self.cmd.params[TAG_ELIF] = [[condition_func,self.start()]]
+		else:
+			e = [[condition_func, _then]]
+			gen_cmd(CMD_IF, _elif=e, _else=_else)
+		return self
+		
+	def _elif(self, condition_func):
+		assert self.cmd, 'no active if'
+		# alloc
+		self.cmd.params[TAG_ELIF] += [[condition_func,self.start()]]
+		return self
 	
-	# alloc new condition
-	cmd.params[TAG_ELIF] += [[condition_func,]]
-
-# not tested
-def _else():
-	global a_if, a_start_idx, current_command_list
-	assert a_if == IF_IF, 'no active if'
-	a_if = IF_ELSE
-
-# not tested
-def _end_if():
-	global a_if, a_start_idx, current_command_list
-	assert a_if == IF_ELIF and a_if != IF_ELSE, 'no active if'
+	def _else(self):
+		assert self.cmd, 'no active if'
+		self.state = TAG_ELSE
+		self.cmd.params[TAG_ELSE] = self.start()
+		return self
 	
-	cmd = current_command_list.commands[a_start_idx]
-	if a_if == IF_ELSE:
-		els = current_command_list.commands[a_start_idx:]
-		del current_command_list.commands[a_start_idx:]
-		cmd.commands += els
-	else:
-		# pop if
-		elsif = current_command_list.commands[a_start_idx+1:]
-		del current_command_list.commands[a_start_idx+1:]
-		#  print(cmd, cmd.params)
-		cmd.params[TAG_ELIF][-1][1] = elsif
-	a_if = IF_NONE
+	def _end_if(self):
+		self.stop()
+		self.state = 0
+		self.cmd = None
 
-# task calls these functions
-meta_chain_funcs = {
-	CMD_IF: _if,
-	CMD_ELSE: _else,
-	CMD_END_IF: _end_if,
-	CMD_DO: _do,
-	CMD_SPAWN: _spawn,
+@contextmanager
+def gen_block(_enter,_exit):
+	blk_start = CommandList.get_pos()
+	yield
+	CommandList.get().add_block((blk_start,CommandList.get_pos(), (_enter,_exit)))
+
+# __while = BlockWhile()
+_if = BlockIf()
+_pb = BlockPickBest()
+
+meta_funcs = {
 	CMD_LABEL: _label,
 	'_L': _label,
-	CMD_SYNC: _sync,
-	CMD_ON: _on,
-	CMD_LISTEN: _listen,
-	CMD_UNLISTEN: _unlisten,
-	CMD_TASK_SUSPEND: _task_suspend,
-	CMD_RETURN: _return,
-	CMD_NEXT_CMD: _next_cmd,
-	CMD_GOTO: _goto,
-	CMD_TASK_DONE: _task_done,
-	CMD_THIS: _this
+	CMD_IF: _if._if,
+	CMD_ELIF: _if._elif,
+	CMD_ELSE: _if._else,
+	CMD_END_IF: _if._end_if,
+	
+	CMD_PICK_BEST: _pb._pick_best
 }
+
+cmds=[CMD_RETURN, CMD_TASK_SUSPEND, CMD_TASK_DONE, CMD_GOTO, CMD_NEXT_CMD, CMD_WAKE, CMD_UNLISTEN, CMD_EMIT, CMD_REF, CMD_THIS, CMD_ON, CMD_WAKE, CMD_SYNC]
+for i in cmds: meta_funcs[i] = wrap_gen(i)
+cmds_func=[(CMD_DO, 0), (CMD_SPAWN,0), (CMD_LISTEN, 1)]
+for i,idx in cmds_func: meta_funcs[i] = wrap_gen_func(i,idx)

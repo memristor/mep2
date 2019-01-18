@@ -16,31 +16,34 @@ class Emitter:
 		s.on_new_listener(listener)
 		
 	def _remove_listener(s, listener):
-		s.listeners.remove(listener)
-		s.on_lose_listener(listener)
+		if listener in s.listeners:
+			s.listeners.remove(listener)
+			s.on_lose_listener(listener)
 		
-	def on_new_listener(s, listener): # override
-		pass
-		
-	def on_lose_listener(s, listener): # override
-		pass
+	def on_new_listener(s, listener): pass # override
+	def on_lose_listener(s, listener): pass # override
 		
 	def emit(s, *params, listener=None, **kwargs):
-		# for l in list(s.listeners):
 		for l in s.listeners:
 			l.callback(*params, **kwargs)
 			if l._once: l.stop()
-		
-	def stop(s): # destroy
-		s.event_manager.emitters.remove(s)
 
 class ServiceManager(Emitter):
 	def __init__(s):
 		super().__init__('')
-		s.emitters = []
-	
+		s.emitters = {}
+		s.listener_map = {}
 	def _find_emitter(s, evt_name):
-		return next((e for e in s.emitters if e.evt_name == evt_name), s)
+		return s.emitters[evt_name] if evt_name in s.emitters else s
+	
+	def on_new_listener(s, listener):
+		if listener.evt_name not in s.listener_map:
+			s.listener_map[listener.evt_name] = [listener]
+			return
+		s.listener_map[listener.evt_name].append(listener)
+		
+	def on_lose_listener(s, listener):
+		s.listener_map[listener.evt_name].remove(listener)
 		
 	def listen(s, evt_name, callback, *args, **kwargs):
 		emitter = s._find_emitter(evt_name)
@@ -54,12 +57,14 @@ class ServiceManager(Emitter):
 		l._once = True
 		return l
 		
-	def emit(s, evt_name, *params):
+	def emit(s, evt_name, *params, **kwargs):
 		emitter = s._find_emitter(evt_name)
 		if emitter == s:
-			for l in s.listeners: 
-				if l.evt_name == evt_name: l.callback(*params)
+			if evt_name in s.listener_map:
+				for l in s.listener_map[evt_name]:
+					l.callback(*params, **kwargs)
 		else:
+			# find foreigner emitter, and emit with it
 			emitter.emit(*params)
 		
 	def register(s, evt_name, service=None):
@@ -67,7 +72,7 @@ class ServiceManager(Emitter):
 		if type(emitter) is Emitter: raise Exception('event already registered')
 		service = service or Emitter
 		e = service(evt_name)
-		s.emitters.append(e)
+		s.emitters[evt_name] = e
 		
 		e.evt_name = evt_name
 		e.listeners=[]

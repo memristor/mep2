@@ -61,6 +61,11 @@ it should be put in same place as config.py is, but creating additional folders 
 	#	but not before config.py execution ends)
 	_core.add_module([can, motion])
 	```
+	or just
+	```python
+	# hello world code for driving robot
+	from modules.default_config import motion
+	```
 - strategies are located in folder called, well "strategies" and in its own folder. Just put here folders with strategy names.
 - each strategy consists of: tasks
 	- init.py - if created, will be used as initial task, use it to prepare strategy execution (setup strategy shared states or so.)
@@ -615,28 +620,28 @@ sudo apt-get install blender
 
 You need 3 terminals:
 
-Open 1st terminal and type:
+Open 1st terminal and type (STEP 1):
 ```bash
 # clone pic-motion-driver repository (do this only once)
 git clone https://github.com/memristor/pic-motion-driver
 cd pic-motion-driver
 # compile simulator (need gcc compiler)
 make sim
-# make virtual can0 device
+# make virtual can0 device for communication of motion driver with mep2
 sudo make dev dev=can0
 # start motion driver
 ./sim can0
 ```
 
-Open 2nd terminal and type:
+Open 2nd terminal and type (STEP 2):
 ```bash
-# clone this repository
-git clone https://github.com/memristor/mep2.git (do this only once)
+# clone this repository (do this only once)
+git clone https://github.com/memristor/mep2.git
 cd mep2
 ./run_blender
 ```
 
-Finally 3rd terminal (same directory - mep2), run this (each time you run strategy):
+Finally 3rd terminal (same directory - mep2), run this (each time you run strategy) (STEP 3):
 ```bash
 # run helloworld strategy
 ROBOT=helloworld ./main.py helloworld
@@ -654,4 +659,70 @@ Useful shortcuts for blender are:
 Read coordinates:
 - to read coordinates, use 3D cursor by clicking left mouse button anywhere on playing field.
 - coordinates are scaled to match those that we use in mep2 (in millimeters)
+
+### Multiple Robots (3 robots example)
+
+You can simulate like this up to 10 robots.
+
+We need 3 robots in robots dir. Lets name them robot1, robot2, robot3
+```
+├── core
+├── modules
+├── robots
+│   ├── robot1
+│   │   ├── config.py
+│   │   └── strategies
+│   │       └── simple
+│   │           ├── 1_task.py
+│   │           └── init.py
+│   ├── robot2
+│   │   ├── config.py
+│   │   └── strategies
+│   │       └── simple
+│   │           ├── 1_task.py
+│   │           └── init.py
+│   ├── robot3
+│   │   ├── config.py
+│   │   └── strategies
+│   │       └── simple
+│   │           ├── 1_task.py
+│   │           └── init.py
+```
+
+```
+from modules.default_config import motion, pathfind
+motion.can.iface='can0'
+```
+```
+from modules.default_config import motion, pathfind
+motion.can.iface='can1'
+```
+```
+from modules.default_config import motion, pathfind
+motion.can.iface='can2'
+```
+
+Do step #1 for each robot:
+```bash
+cd pic-motion-driver
+sudo make dev dev=can0
+sudo make dev dev=can1
+sudo make dev dev=can2
+./sim can0 & # with & runs in background
+./sim can1 & # with & runs in background
+./sim can2
+pkill sim
+```
+
+Repeat step #2 here
+
+Run 3 robots:
+```bash
+# 1st terminal
+ROBOT=robot1 ./main.py simple
+# 2nd terminal
+ROBOT=robot2 ./main.py simple
+# 3rd terminal
+ROBOT=robot3 ./main.py simple
+```
 
