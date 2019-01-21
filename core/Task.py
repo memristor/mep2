@@ -10,6 +10,7 @@ DENIED = 'denied'
 DONE = 'done'
 PENDING = 'pending'
 LEAVING = 'leaving'
+DISABLED = 'disabled'
 
 class Thread(CommandList):
 	num_instances = 0
@@ -139,6 +140,9 @@ class Task:
 		s.module._sim = False
 		s.names = {}
 	
+	def disable(s):
+		s.state.val = DISABLED
+		
 	def add_thread(s,r):
 		s.branches.append(r)
 		if s.is_sim: s.sim_push_event(r)
@@ -424,7 +428,7 @@ class Task:
 				r.inc_ip()
 	
 	def cmd_ref(s, cmd, r):
-		cmd.future.thread = r
+		cmd.future.set_thread(r)
 		r.inc_ip()
 	
 	def cmd_label(s, cmd, r):

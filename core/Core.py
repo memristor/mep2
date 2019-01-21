@@ -1,4 +1,3 @@
-
 import asyncio
 from .Util import Transform, rot_vec_deg, mul_pt, col, pick, point_distance, sub_pt
 import functools
@@ -51,9 +50,19 @@ class Core():
 		self.has_task = self.task_manager.has_task
 		self.set_task = self.task_manager.set_task
 		self.export_cmd = self.task_manager.export_cmd
-		self.export_ns = self.task_manager.export_ns
+		# self.export_ns = self.task_manager.export_ns
 		self.get_current_task = self.task_manager.get_current_task
 		self.set_scheduler = self.task_manager.set_scheduler
+		
+		class ExportNS:
+			def __call__(self, ns):
+				self.old = self.task_manager.export_ns()
+				self.task_manager.export_ns(ns)
+				return self
+			def __enter__(self): pass
+			def __exit__(self, *args): self.task_manager.export_ns(self.old)
+		
+		self.export_ns = ExportNS()
 		
 		self.emit = self.service_manager.emit
 		self.listen_once = self.service_manager.listen_once

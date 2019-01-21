@@ -1,6 +1,6 @@
-
 import asyncio
 from core.Task import *
+
 class TaskManager:
 	def __init__(self):
 		self.current_task = None
@@ -29,12 +29,14 @@ class TaskManager:
 		if self._next_task:
 			next_task = self._next_task
 			self._next_task = None
-			if self.set_task(next_task) != False: return
+			if self.get_task(next_task).state.val != DONE:
+				if self.set_task(next_task) != False: return
 		_core.task_manager.print_task_states()
 		# if self.scheduler and self.get_pending_tasks():
 		if self.scheduler:
 			r=self.scheduler.pick_task(_core.task_manager.get_ready_tasks())
-			if not r and self.get_pending_tasks(): 
+			if type(r) is str: r=self.set_task(r)
+			if not r and self.get_pending_tasks():
 				print('failed to pick task')
 				self.scheduling = _core.loop.call_later(0.5, self.schedule_task)
 			
@@ -57,7 +59,7 @@ class TaskManager:
 		task = self.get_task(name)
 		return task != None
 		
-	def get_task(self,name):
+	def get_task(self, name):
 		task = next((t for t in self.tasks if t.name == name), None)
 		return task
 	

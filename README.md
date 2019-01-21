@@ -506,7 +506,7 @@ def load_robot(point, _future, _sim):
 		_core.set_position(some_arrived_new_position)
 		
 		# lets say if robot is already loaded, we can return False
-		#	which means that if running simulation scheduler, it won't consider executing this task
+		# which means that if running simulation scheduler, it won't consider executing this task
 		if State.robot_loaded.val:
 			return False
 		
@@ -726,3 +726,582 @@ ROBOT=robot2 ./main.py simple
 ROBOT=robot3 ./main.py simple
 ```
 
+### Real robot in simulation with simulated ones
+Also you can simulate robot with real robot in similar way. When you connect on wifi network
+where robot is connected and is running mep2, when you run blender that robot will automatically
+connect to it, and thus when you run additional mep2 on your machine, you will put them in same
+virtual terrain that real robot will react to simulated robot.
+
+# Going deeper
+
+In previous section of this tutorial we have learned how to run basic task where robot
+does some sequence of actions without actually caring much about what happens with robot in reality.
+In this section we learn how to respond to outside influence, how to make module, how to
+use simulation mode and simulation scheduler to automatically optimize strategy during its
+execution and thus be able to avoid opponents interference.
+
+
+## Task commands
+
+### _goto
+- this thread:
+	- _goto('label') - jump to label
+	- _goto(offset=2) - skip next command
+- other thread:
+	- _goto('label', ref='some_other_thread') - make some_other_thread jump to label
+	- _goto(offset=0, ref='some_other_thread') - make some_other_thread repeat last command
+
+This example is very simple and useless in practice (robot moves forward and backward forever):
+```python
+def run():
+	_label('test')
+	r.forward(100)
+	r.forward(-100)
+	_goto('test')
+```
+This one was useless because task never ends, no loop escape plan.
+
+Now lets check useful case.
+```python
+def run():
+	@_spawn
+	def unload_something():
+		unload()
+		sleep(5)
+		 # makes main thread jump to unload_done and leave loop
+		_goto('unload_done', ref='main')
+		
+	_label('test')
+	r.turn(10)
+	r.turn(-10)
+	_goto('test')
+	
+	_label('unload_done')
+```
+
+### naming thread
+```python
+def run():
+	@_spawn(_name='some_name')
+	def t():
+		sleep(5)
+		_label('skip_print')
+		_print('some_name is done')
+		
+	# in previous thread jump to label 'skip_print'
+	_goto('skip_print', _ref='some_name')
+	
+	sleep(1)
+```
+
+### _sync
+Stops current or other thread (ref=some_thread) until some action wakes it up.
+
+```python
+_sync()         - wait forever (or until _wake)
+_sync('str') 	- wait for anything to hit label
+_sync(a)        - wait single thread to finish
+_sync([a,b,c]) 	- wait for all given threads to finish
+```
+
+
+```python
+def run():
+	@_spawn(_name='some_name')
+	def t():
+		sleep(5)
+		_print('hey')
+	
+	# pause thread named 'some_name'
+	_sync(_ref='some_name')
+	
+	sleep(10)
+	# wake thread 'some_name'
+	_wake(ref='some_name')
+	
+```
+
+_sync('str') - stops current thread until some thread enters label named 'str'
+```python
+def run():
+	@_spawn
+	def t():
+		sleep(5)
+		_print('hey')
+		_label('some_label')
+	
+	# wait until some thread entered label 'some_label'
+	_sync('some_label')
+	_print('this will be printed after 5 secs')
+```
+
+
+## Block commands (with ...)
+
+### with _pick_best()
+
+This function uses simulator to evaluate which of the given paths should robot take (it will pick shortest)
+```python
+def run():
+	r.goto(200,80)
+	# simulate every choice, and pick one with shortest time 
+	# or highest score if score function is used
+	with _pick_best(): 
+		r.goto(100,200) # choice 1
+		r.goto(200,100) # choice 2
+		r.turn(10) # choice 3
+		@_do
+		def choice4(): # choice 4
+			r.goto(100,10)
+			sleep(1)
+			r.goto(50,100)
+	r.look(0,0)
+	r.forward(100)
+```
+
+### with disabled('event_name')
+
+With this command we can block certain events from hitting _listen-ers that are listening to them.
+Also listener can be named, so that not all handlers listening to same event are blocked but only one.
+
+```python
+with disabled('collision'):
+	# this will let our robot crash into closest robot detected :)
+	bot = _core.entities.get_closest_entity('robot')
+	r.goto(*bot.point)
+```
+
+## Events
+
+### Using events outside of task
+#### _core.listen('event_name', function, params...)
+
+Decorator style is also supported:
+```python
+@_core.listen('task:done')
+def on_task_done(task):
+	print('task', task, 'just finished')
+```
+
+*params...* - here are used only for listening (subscribing) to service, for example:
+```python
+def function():
+	print('called every 5th second')
+_core.listen('timer', function, 5)
+
+# or decorator style
+@_core.listen('timer', 5)
+def function():
+	print('called every 5th second')
+```
+So service handles each listener according to its parameters, they are listening to same event
+but with certain "filters" or requests. And this event is no longer an event but service.
+
+```python
+@_core.listen('detection', ent='robot', area=[100,100,300,300])
+def on_robot_detected_stealing_our_stuff():
+	# disable task pick_stuff because we suspect that opponent robot has just stolen it
+	_core.task_manager.get_task('pick_stuff').disable()
+```
+
+#### _core.emit('event_name', params...)
+	
+This calls all listeners listening to event_name
+
+### Using events inside of task
+#### _listen('event_name', function, params...)
+
+usage same as _core.listen, but as part of task, and is automatically unlistened when task is finished or 
+thread that created it is finished.
+
+Event listener turns into thread when any asynchronous commands are used, for example:
+```python3
+def run():
+	@_listen('motion:stuck')
+	def on_stuck():
+		# pause main thread
+		_sync(ref='main')
+		# go backward
+		r.forward(-30)
+		# resume main thread
+		_wake('main')
+	r.goto(200,600)
+```
+
+As way to control behavior of these threads (subtasks), there are 3 options:
+- _repeat="block" - block any other events while current is still running
+- _repeat="replace" - stop previously running thread and start new one
+- _repeat="duplicate" - start new one also (use this if you know what you are doing, because if this event occurs often, it could generate a lot of threads
+	and potentially cause unwanted chaos)
+	
+	
+#### _emit('event_name', params...)
+
+This is mostly useless because it doesn't make sense and shouldn't be used :).
+
+### List of events currently emited
+- task:new task-name
+- task:done task-name
+- collision msg => msg is either 'danger' or 'safe'
+- entity:new entity
+- entity:refresh entity
+- entity:remove entity
+- sensor:new_pt sensor-point
+- config:done
+- strategy:done
+- motion:idle
+- motion:stuck
+- share:state_change <old-state> <new-state>
+
+## Schedulers
+
+### Basic scheduler
+	
+This scheduler relies on parameter *weight* given in each task for determining order of their execution.
+Just like with any scheduler parameter, weight doesn't have to be constant (it can be function which is then
+evaluated each time new task is being scheduled). 
+This parameter is set as global variable in each task:
+```python
+weight = 1
+def run():
+	...
+```
+Or as function like this:
+```python
+def weight():
+	ent = _core.entity.get_closest_entity('pack')
+	dist=_core.distance_to(ent.point)
+	return dist
+def run():
+	...
+```
+### Simulation scheduler
+
+Within config.py it is possible to set scheduler to be used for task choosing (default is BasicScheduler):
+```python
+from modules.default_config import sim_sched
+```
+or equivalently
+```python
+from core.schedulers.SimulationScheduler import *
+_core.task_manager.set_scheduler( SimulationScheduler() )
+```
+Now with this activated, task will be chosen based on how much points will it take and based on amount
+of time it takes to do it. Score = points / time.
+Each time new task is picked, all ready tasks are simulated and evaluated by commands simulation interface,
+to determine whick task to be used next. This is very useful because it makes writing strategy more elegant,
+with less code, without needing to worry much about its priority constants and functions.
+
+### Writing new scheduler
+
+In case you want to write your own scheduler consider how BasicScheduler is made:
+```python
+from core.Util import get_task_param
+class BasicScheduler:
+	def __init__(self, mode='weight'):
+		self.mode=mode
+	
+	def score_func(self, task):
+		return get_task_param(task, self.mode)
+		
+	def pick_task(self, tasks):
+		tasks = [task for task in tasks if hasattr(task.module, self.mode)]
+		if tasks:
+			tasks=sorted(tasks, key=self.score_func, reverse=(self.mode == 'weight'))
+			for task in tasks:
+				if _core.task_manager.set_task(task.name):
+					# successfully picked task
+					return True
+		return False
+```
+Task scheduler is class with at least pick_task function.
+Only requirement for task scheduler is *pick_task(self, tasks)* function which takes tasks as argument, it should use 
+*_core.task_manager.set_task('task_name')* function to try pick task 
+(it will return False if task returned False because of unmet preconditions) and then
+returns True when task was successfully picked, or returns False when not task was picked in which case
+next scheduling will take place after some determined time (in task manager). It is also possible to return
+name of task to be picked, but this way preconditions are not checked, and have to be checked other way, 
+by precondition parameter for example.
+
+In task scheduler feel free to use event listeners to control task execution any time, while task is running. For example to
+stop execution of tasks which are taking too long to execute, or to stop execution based on prediction
+that task will execute too long after simulating task from this very moment.
+you may use _core.task_manager.run_simulator() at any time when task is set or even running.
+if task is already running then simulator will run from current task state to finish (it will not start from
+beginning of it). Place scheduler as module in modules/schedulers directory or if scheduler is dependent on
+specific robot, place it in *robot/robot-name* directory.
+
+
+
+
+## Finishing task
+
+- task is stopped (finished or suspended) when:
+	1. its execution is finished
+	2. _task_done() is called
+	3. _task_suspend() is called
+	4. scheduler switches task at some point in time
+	
+_task_done and _task_suspend may take parameter name of next task that is suggested, and that next task
+will be forced over other tasks no matter which scheduler is used (unless that task is already finished or 
+preconditions are not satisfied). Of course task scheduler may export its own function for suggesting next task.
+
+```python
+def run():
+	...
+	@_do
+	def pick_next_pack():
+		ent = _core.entity.get_closest_entity('pack')
+		if not ent:
+			# no more things to pick
+			_task_done()
+		else:
+			pick_entity(ent)
+```
+
+## Robot configuration (config.py)
+#### Default_config
+	
+It is easier to use default configuration and not care much
+```python
+from modules.default_config import motion, lidar, collision_wait_suspend
+```
+List of configs that may be used is: motion, pathfind, collision_wait_suspend, timer, share, lidar, chinch, sim_sched.
+	
+#### How to set scheduler
+
+```python
+from modules.default_config import sim_sched
+```
+or
+```python
+from core.schedulers.SimulationScheduler import *
+_core.task_manager.set_scheduler( SimulationScheduler() )
+# or some scheduler from modules directory
+from motion.schedulers.SomeScheduler import *
+_core.task_manager.set_scheduler( SomeScheduler() )
+```
+	
+#### Adding Infrared sensors
+BinaryInfrared(name, local_point, local_vector, packet_stream)
+```python
+from modules.sensors.BinaryInfrared import *
+_core.add_module([
+BinaryInfrared('back middle', (0,0), (-500,0), packet_stream=can.get_packet_stream(0x80008d12)),
+BinaryInfrared('back left', (0,0), (-500,0), packet_stream=can.get_packet_stream(0x80008d16)),
+BinaryInfrared('front1', (0,0), (500,0), packet_stream=can.get_packet_stream(0x80008d14)),
+BinaryInfrared('front2', (0,0), (500,0), packet_stream=can.get_packet_stream(0x80008d13))])
+```
+
+#### Adding default init task
+This default init task is always executed on start of any strategy, 
+if init.py exists in strategy it will be executed after this function.
+
+```python
+@_core.init_task
+def init_task():
+	_e.r.conf_set('pid_d_p', 3.7)
+	_e.r.conf_set('pid_d_d', 100)
+	_e.r.conf_set('pid_r_p', 4.0)
+	_e.r.conf_set('pid_r_d', 150)
+	_e.r.conf_set('pid_r_i', 0.013)
+```
+
+#### Task setup function
+Here we can place any shared task configuration.
+This is going to be start of any task except init task.
+
+```python
+@_core.task_setup_func
+def on_start_of_each_task():
+	@_e._listen('collision')
+	def handle_collision(status):
+		...
+```
+
+
+## Writing modules
+
+Example of module:
+```python
+class ModuleName:
+	def __init__(self, params):
+		...
+	def export_cmds(self, namespace):
+		with _core.export_ns(namespace):
+			_core.export_cmd('command', self.command1)
+			_core.export_cmd('subtask', self.subtask)
+	@_core.module_cmd
+	def command1(self, params): # Note: we didn't use _future here 
+		...                 # (but it is still async because of _core.module_cmd)
+	@_core.do
+	def subtask(self, params):
+		...
+	def command2(self, params, _future):
+		...
+	def command3(self, params, _future, _sim=0):
+		if _sim:
+			# eval simulation
+			return done_in_secs
+		
+	def run(self):
+		...
+```
+
+In module all functions are optional, and are used when defined.
+
+But:
+- def run(self) - is called after config is fully executed.
+- def export_cmds(self, namespace)
+
+	This is to be defined like this by convention, as module may be instanced multiple times.
+	Also commands may not be directly exported to task, but rather with temporary namespace
+	and redefined here, for example:
+	```python
+	# in config.py
+	...
+	motion.export_cmds('tmp_ns1')
+	_core.add_module(motion)
+	t=_e.tmp_ns1
+	with _core.export_ns('r'):
+		@_core.export_cmd
+		def goto(point):
+			t.goto(point[0],point[1])
+		@_core.export_cmd
+		def goto2(point):
+			_e.sleep(1)
+			t.goto(point[0],point[1])
+	```
+	We have just redefined our goto from motion driver as new functions r.goto and r.goto2
+
+_core.module_cmd - saves _future to self.future and then calls this function without _future
+
+#### Using c++ as module
+
+**Requirement: c++ boost library (boost::python)**
+
+File structure
+```
+module/service/
+├── pathfinder_cpp
+│   ├── Binder.cpp
+│   ├── Geometry.cpp
+│   ├── Geometry.hpp
+│   ├── __init__.py
+│   ├── Makefile
+│   ├── Pathfinder.cpp
+│   └── Pathfinder.hpp
+└── Pathfinder.py
+```
+
+File ```pathfinder_cpp/__init__.py```:
+```python
+from core.Util import load_boost_cpp_module
+pathfinder = load_boost_cpp_module('Pathfinder')
+```
+
+File ```Pathfinder.py```:
+```python
+from .pathfinder_cpp import pathfinder
+class PathfinderService:
+	def __init__(self):
+		...
+		# make instance of c++ PathfinderBinder class
+		self.pathfinder = pathfinder.Pathfinder()
+	def run(self):
+		...
+```
+
+In Makefile use this example as template and change only *module* and *src* variables.
+
+File ```pathfinder_cpp/Makefile```
+```Makefile
+module := Pathfinder
+
+src := Binder.cpp Pathfinder.cpp
+
+############################################
+
+machine := $(shell uname -m)
+bin/$(machine)/$(module).so: $(src)
+	mkdir -p bin/$(machine)
+	g++ $^ -shared -fpic $(shell python3-config --includes) -lboost_python3 -O2 -o $@
+
+clean:
+	rm -rf bin
+```
+
+Example binder (taken from actual implementation of PathfinderBinder), it
+shows list and tuple usage:
+
+File ```pathfinder_cpp/Binder.cpp```:
+```c++
+...
+#include <boost/python.hpp>
+namespace py = boost::python;
+class PathfinderBinder {
+	private:
+		Pathfinder pf; // actual implementation of module in pure c++
+	public:
+		PathfinderBinder() {}
+		int AddPolygon(py::list& lt, double offset) {
+			// iterate list lt
+			for (int i = 0; i < py::len(lt); ++i) {
+				py::tuple t = py::extract<py::tuple>(lt[i]);
+				int x = py::extract<int>(t[0]);
+				int y = py::extract<int>(t[1]);
+			}
+		}
+		
+		void RemovePolygon(int poly_id) {
+		}
+		
+		py::list GetPolygon(int poly_id) {
+		}
+		
+		py::list Search(py::tuple start, py::tuple end) {
+			int x1 = py::extract<int>(start[0]);
+			int y1 = py::extract<int>(start[1]);
+			int x2 = py::extract<int>(end[0]);
+			int y2 = py::extract<int>(end[1]);
+			Point pt_start = Point(x1,y1);
+			Point pt_end = Point(x2,y2);
+			my::Path path = pf.Search(pt_start, pt_end);
+			
+			py::list l;
+			for(auto &pt : path) {
+				l.append(py::make_tuple(pt.x, pt.y));
+			}
+			return l;
+		}
+		void Clear() {
+		}
+};
+BOOST_PYTHON_MODULE(Pathfinder)
+{
+    class_<PathfinderBinder>("Pathfinder")
+		.def("AddPolygon", &PathfinderBinder::AddPolygon)
+		.def("RemovePolygon", &PathfinderBinder::RemovePolygon)
+		.def("GetPolygon", &PathfinderBinder::GetPolygon)
+		.def("Search", &PathfinderBinder::Search)
+		.def("Clear", &PathfinderBinder::Clear)
+		;
+}
+```
+Of course it is possible to export bare c++ function without class (from SimpleExample link below)
+```c++
+#include <boost/python.hpp>
+namespace py = boost::python;
+
+std::string greet() { return "hello, world"; }
+int square(int number) { return number * number; }
+BOOST_PYTHON_MODULE(getting_started1)
+{
+    py::def("greet", greet);
+    py::def("square", square);
+}
+```
+Some links to documentation
+- [boost.python](https://wiki.python.org/moin/boost.python)
+- [SimpleExample](https://wiki.python.org/moin/boost.python/SimpleExample)
+- [Another example](https://www.boost.org/doc/libs/1_61_0/libs/python/doc/html/tutorial/tutorial/exposing.html)
