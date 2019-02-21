@@ -7,8 +7,8 @@ def run():
 	def _():
 		lfliper(2)
 	_sync()
-	r.forward(57)
 	r.curve_rel(-122, 52)
+	r.forward(57)
 	r.forward(20)
 
 	#hvatanje

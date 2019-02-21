@@ -4,9 +4,17 @@ weight = 1
 def run():
 
 	_print("************** Otvori rucice")
-	lrucica(1)
-	rrucica(1)
+	@_listen('servo:error')
+	def on_servo_err(name):
+		print('servo error', name)
 
+	a=lfliper(1)
+	@_do
+	def _():
+		print('servo status',a.val.val)
+	rfliper(1)
+
+	sleep(1)
 	_print("************** Zatvori rucice")
-	lrucica(0)
-	rrucica(0)
+	lfliper(0)
+	rfliper(0)

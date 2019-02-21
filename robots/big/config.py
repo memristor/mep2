@@ -85,18 +85,20 @@ _core.add_module(tcp_gpio)
 
 # interrupt receiever
 def gpio_recv(c):
-	c=c.decode()
-
+	c1=c.decode()
+	print('c1',c1)
 	# spawn thread task independent
 	@_core.spawn_side
 	def _():
+		c=c1
 		v=800	
+		print(c)
 		# 05 = left down, 06 = left up
 		if c in ('05','06'):
 			v = -v if c == '05' else v
 			# move back a little, to leave switch
 			_e.servo_llift.wheelspeed(v)
-			_e.sleep(0.15)
+			_e.sleep(0.1)
 			_e.servo_llift.wheelspeed(0)
 			# must use _do because _core.spawn is not in _e
 			@_e._do
@@ -111,7 +113,7 @@ def gpio_recv(c):
 			v = -v if c == '19' else v
 			# move back a little, to leave switch
 			_e.servo_rlift.wheelspeed(v)
-			_e.sleep(0.15)
+			_e.sleep(0.1)
 			_e.servo_rlift.wheelspeed(0)
 			# must use _do because _core.spawn is not in _e
 			@_e._do
@@ -158,8 +160,15 @@ def rfliper(v):
 	# _e.servo_rfliper.action('GoalPosition', [20,289,424][v])
 #return
 	_e._print("Poslao desnom servou")
-	_e.servo_rfliper.action('GoalPosition', [880,650,575][v])
-	_e.sleep(0.7)
+	a=_e.servo_rfliper.action('GoalPosition', [830,650,575][v])
+#_e.sleep(0.7)
+
+	# if stuck, retry
+	@_e._do
+	def _():
+		if not a.val:
+			_e.rfliper(v)	
+	return a
 
 @_core.export_cmd
 @_core.do
@@ -167,8 +176,15 @@ def lfliper(v):
 	# _e.servo_lfliper.action('GoalPosition', [921,606,504][v])
 #return
 	_e._print("Poslao levom servou")
-	_e.servo_lfliper.action('GoalPosition', [212,430,500][v])
-	_e.sleep(0.7)
+	a=_e.servo_lfliper.action('GoalPosition', [212,430,500][v])
+#_e.sleep(0.7)
+
+	# if stuck, retry
+	@_e._do
+	def _():
+		if not a.val:
+			_e.lfliper(v)	
+	return a
 #################################################
 
 
@@ -249,6 +265,11 @@ def round_end():
 	for i in range(1,10):
 		_e.pump(i,0)
 	_e.r.motoroff()
+
+@_core.listen('strategy:done')
+def strategy_finished():
+	print('strategy finished, quitting')
+	_core.quit()
 #################################
 
 ######## Remote Start Option ######
@@ -300,9 +321,10 @@ def init_task():
 	_e.r.send('R')
 	_e.r.conf_set('send_status_interval', 0)
 	_e.r.speed(30)
-	_e.r.accel(500)
+	_e.r.accel(600)
 	
-	_e.r.conf_set('alpha', 1000)
+	_e.r.conf_set('alpha',1000)
+
 	_e.chinch()
 	timer.start_timer()
 

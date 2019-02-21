@@ -61,7 +61,9 @@ class Servo:
 			self.future.set(1)
 			return
 		servo_id = self.servo_id
-		print('servo', self.name, 'action', f, val)
+
+		if f != 'PresentPosition':
+			print('servo', self.name, 'action', f, val)
 		cmd = servo_commands[f]
 		servo_len = 4
 		servo_func = cmd[0]
@@ -104,6 +106,7 @@ class Servo:
 			# print(self.servo_id, self.name, 'starting cmd', f, self.val)
 			self.cur_action = f
 			if poll and f == 'GoalPosition' and self.val != None:
+				self.servo_tries=0
 				self.poll_status()
 				
 			elif f not in ('GoalPosition', 'PresentPosition') and self.future:
@@ -136,9 +139,10 @@ class Servo:
 				
 			if self.servo_tries > 10:
 				if self.future: self.future.set(0)
+				_core.emit('servo:error', self.name)
 				self.val = None
 			self.prev_val = r
-			print('servo', self.name, self.servo_tries)
+			print('servo', self.name, self.prev_val, self.servo_tries)
 			
 			if self.val != None and abs(r - self.val) < 50:
 				if self.future: self.future.set(1)

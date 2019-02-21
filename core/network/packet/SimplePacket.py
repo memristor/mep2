@@ -11,7 +11,7 @@ class SimplePacket(PacketStream):
 	def on_recv(self, pkt):
 		self.buf += pkt
 		while len(self.buf) >= self.pkt_size:
-			data = pkt[:self.pkt_size]
+			data = self.buf[:self.pkt_size]
 			self.buf = self.buf[self.pkt_size:]
 			if self.recv:
 				self.recv(data)

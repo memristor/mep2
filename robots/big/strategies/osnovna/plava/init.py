@@ -9,7 +9,7 @@ def run():
 
 	r.speed(150)
 
-	rlift(1)
-	llift(1)
+#rlift(1)
+#	llift(1)
 	lfliper(0)
 	rfliper(0)

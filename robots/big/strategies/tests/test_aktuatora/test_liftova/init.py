@@ -1,10 +1,11 @@
 def run():
 
 #with _while(1):
-#with _e._parallel():
+	pump(0,1)
+	with _e._parallel():
 	
-	llift(1)
-	rlift(1)
+		llift(1)
+		rlift(1)
 	_sync()
 
 	with _parallel():
@@ -18,3 +19,4 @@ def run():
 		llift(1)
 		rlift(1)
 	_sync()
+	pump(0,0)

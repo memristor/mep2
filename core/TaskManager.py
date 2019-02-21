@@ -58,6 +58,9 @@ class TaskManager:
 	def get_ready_tasks(self):
 		return list(filter(lambda t: t.state.get() in (PENDING,DENIED), self.tasks))
 		
+	def get_done_tasks(self):
+		return list(filter(lambda t: t.state.get() in (DONE), self.tasks))
+
 	def get_pending_tasks(self):
 		return list(filter(lambda t: t.state.get() in (PENDING,DENIED,SUSPENDED), self.tasks))
 	

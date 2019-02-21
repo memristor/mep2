@@ -45,12 +45,28 @@ def run():
 		rfliper(2)
 	r.curve_rel(1050,48)
 	rfliper(1)
-	r.absrot(180)
-	r.forward(150)
-	r.speed(100)
-	r.curve_rel(-1000,90)
+#	r.absrot(180)
+#	r.forward(150)
+#	r.speed(100)
+#	r.curve_rel(-900,90)
+	
+	x,y=coord('mala_luka')
+
+	r.goto(x, y)
 	r.absrot(90)
-	r.forward(150)
+	r.forward(60)
+	lfliper(2)
+	rfliper(2)
+	r.forward(-80)
+	@_spawn
+	def _():	
+		rlift(0)
+	llift(0)
+	pump(0, 0)
+
+	r.forward(-80)
+
+
 
 
 

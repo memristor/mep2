@@ -564,6 +564,7 @@ class Task:
 		if r.cmd_state.get() == 1:
 			r.inc_ip()
 			r.cmd_state.set(0)
+			cmd.future.set(cmd.ret)
 		else:
 			kwargs = cmd.kwargs.copy()
 			name=pick('_name', kwargs)
@@ -572,7 +573,7 @@ class Task:
 			if not cmd.future.paused() or atomic:
 				cmd.clear()
 				with CommandList.save(cmd):
-					cmd.args[0](*cmd.args[1:], **kwargs)
+					cmd.ret=cmd.args[0](*cmd.args[1:], **kwargs)
 				
 				if not cmd.commands:
 					r.inc_ip()

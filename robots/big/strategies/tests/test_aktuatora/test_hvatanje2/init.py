@@ -8,7 +8,6 @@ def run():
 		lfliper(2)
 	_sync()
 
-	r.forward(200)
 
 	with _parallel():
 		rfliper(1)
@@ -36,7 +35,6 @@ def run():
 		lfliper(2)
 	_sync()
 
-	r.forward(200)
 
 
 	with _parallel():
@@ -44,14 +42,12 @@ def run():
 		lfliper(1)
 	_sync()
 
-	r.forward(-200)
 
 	with _parallel():
 		rfliper(2)
 		lfliper(2)
 	_sync()
 
-	r.forward(-200)
 
 	sleep(1)
 	with _parallel():
@@ -75,8 +71,6 @@ def run():
 		llift(1)
 	_sync()
 	sleep(1)
-
-	r.forward(-100)
 
 
 	with _parallel():
