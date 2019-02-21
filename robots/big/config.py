@@ -86,13 +86,13 @@ _core.add_module(tcp_gpio)
 # interrupt receiever
 def gpio_recv(c):
 	c1=c.decode()
-	print('c1',c1)
+#print('c1',c1)
 	# spawn thread task independent
 	@_core.spawn_side
 	def _():
 		c=c1
 		v=800	
-		print(c)
+#print(c)
 		# 05 = left down, 06 = left up
 		if c in ('05','06'):
 			v = -v if c == '05' else v
@@ -134,22 +134,35 @@ def init_servos():
 	_e.servo_llift.wheelspeed(0)
 	_e.servo_rlift.wheelspeed(0)
 
+lift_speed=1023
 @_core.export_cmd
 @_core.do
-def llift(v):
+def llift(v,timeout=2.0):
+	@_e._spawn
+	def on_timeout():
+		_e.sleep(timeout)
+		_e.servo_llift.wheelspeed(0)
+		_e._print('llift timeout')
+		_e._label('servo_llift')	
 	_e._reset_label('servo_llift')
 	_e._print('servo_llift', v)
-	_e.servo_llift.wheelspeed(-1023 if v==1 else 1023)
+	_e.servo_llift.wheelspeed(-lift_speed if v==1 else lift_speed)
 	# lets use labels for short improvisation of async command (_future)
 	if not State.sim:
 		_e._sync('servo_llift')
 	
 @_core.export_cmd
 @_core.do
-def rlift(v):
+def rlift(v,timeout=2.0):
+	@_e._spawn
+	def on_timeout():
+		_e.sleep(timeout)
+		_e.servo_rlift.wheelspeed(0)
+		_e._print('rlift timeout')
+		_e._label('servo_rlift')	
 	_e._reset_label('servo_rlift')
 	_e._print('servo_rlift', v)
-	_e.servo_rlift.wheelspeed(1023 if v==1 else -1023)
+	_e.servo_rlift.wheelspeed(lift_speed if v==1 else -lift_speed)
 	# lets use labels for short improvisation of async command (_future)
 	if not State.sim:
 		_e._sync('servo_rlift')
@@ -313,7 +326,7 @@ def init_pids():
 def init_task():
 	State.pumpe = [_State(0) for i in range(10)]
 	
-	_e.check_chinch()
+#_e.check_chinch()
 	
 	init_servos()
 	
@@ -325,6 +338,6 @@ def init_task():
 	
 	_e.r.conf_set('alpha',1000)
 
-	_e.chinch()
+#_e.chinch()
 	timer.start_timer()
 
