@@ -10,14 +10,14 @@ def run():
 #sleep(2)
 
 	_print("Srednja pozicija")
-	lfliper(1)
-	rfliper(1)
+	lfliper(2)
+	rfliper(2)
 
 #	sleep(2)
 
 	_print("Otvori flipere")
-	lfliper(2)
-	rfliper(2)
+	lfliper(1)
+	rfliper(1)
 
 
 

@@ -129,8 +129,8 @@ gp.recv = gpio_recv
 
 @_core.do
 def init_servos():
-	servo_lfliper.action('Speed', 200)
-	servo_rfliper.action('Speed', 200)
+#servo_lfliper.action('Speed', 200)
+#	servo_rfliper.action('Speed', 200)
 
 	# wheel mode
 	_e.servo_rok.action('CCWAngleLimit', 0)
@@ -163,14 +163,18 @@ def lok_visina(v):
 def rfliper(v):
 	# _e.servo_rfliper.action('GoalPosition', [20,289,424][v])
 #return
-	_e.servo_rfliper.action('GoalPosition', [880,700,575][v])
+	_e._print("Poslao desnom servou")
+	_e.servo_rfliper.action('GoalPosition', [880,650,575][v])
+	_e.sleep(0.7)
 
 @_core.export_cmd
 @_core.do
 def lfliper(v):
 	# _e.servo_lfliper.action('GoalPosition', [921,606,504][v])
 #return
-	_e.servo_lfliper.action('GoalPosition', [212,410,500][v])
+	_e._print("Poslao levom servou")
+	_e.servo_lfliper.action('GoalPosition', [212,430,500][v])
+	_e.sleep(0.7)
 #################################################
 
 
