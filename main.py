@@ -8,6 +8,7 @@ def main():
 	core.load_config()
 	if len(sys.argv) > 1:
 		core.load_strategy(sys.argv[1])
+	core.start_strategy()
 	core.run()
 
 if __name__ == '__main__':

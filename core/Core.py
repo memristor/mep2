@@ -55,12 +55,14 @@ class Core():
 		self.set_scheduler = self.task_manager.set_scheduler
 		
 		class ExportNS:
-			def __call__(self, ns):
-				self.old = self.task_manager.export_ns()
-				self.task_manager.export_ns(ns)
+			def __call__(self, ns=None):
+				if not ns:
+					return 	_core.task_manager.export_ns()
+				self.old = _core.task_manager.export_ns()
+				_core.task_manager.export_ns(ns)
 				return self
 			def __enter__(self): pass
-			def __exit__(self, *args): self.task_manager.export_ns(self.old)
+			def __exit__(self, *args): _core.task_manager.export_ns(self.old)
 		
 		self.export_ns = ExportNS()
 		
@@ -204,6 +206,9 @@ class Core():
 			if hasattr(i, 'run'): i.run()
 		print('loaded modules:', '\n\t' + '\n\t'.join([col.yellow + x.name + col.white + ' : class ' + type(x).__name__ for x in self.get_modules()]))
 		
+	def start_strategy(self):
+		self.task_manager.setup_init_task()
+		self.task_manager.set_task('init')
 	
 	async def main_loop(self):
 		while not self.quit:
