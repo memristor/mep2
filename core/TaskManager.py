@@ -63,6 +63,12 @@ class TaskManager:
 		task = next((t for t in self.tasks if t.name == name), None)
 		return task
 	
+	def notify(self, queue_id):
+		self.get_current_task().notify(queue_id)
+		
+	def block(self, queue_id, future):
+		return self.get_current_task().block(queue_id, future)
+	
 	##### EXPORT #####
 	def init_export(self):
 		ns=''
@@ -114,6 +120,7 @@ class TaskManager:
 			'pending': col.yellow + ' PENDING' + col.white,
 			'done': col.green + 'DONE' + col.white,
 			'suspended': col.red + 'SUSPENDED' + col.white,
+			'disabled': col.red + 'DISABLED' + col.white,
 			'denied': col.red + 'DENIED' + col.white
 		}
 		for task in _core.task_manager.get_tasks():
@@ -122,8 +129,7 @@ class TaskManager:
 	def setup_init_task(self):
 		task = next((t for t in self.tasks if t.name == 'init'), None)
 		if not task:
-			def run_this():
-				_core.emit('task:new', 'init')
+			def run_this(): pass
 			self.add_task_func('init', run_this)
 
 	def set_next_task(self, name):
@@ -178,6 +184,7 @@ class TaskManager:
 		strategy_folder_name = 'strategies'
 		tasks_dir = 'robots/' + robot_name + '/' + strategy_folder_name + '/' + strategy_name
 		sys.dont_write_bytecode = True
+		import core.State as st
 		print('loading strategy:', col.yellow, strategy_name, col.white)
 		for i in os.listdir(tasks_dir):
 			fullpathname = os.path.join(tasks_dir, i)
@@ -185,11 +192,14 @@ class TaskManager:
 				if fullpathname.endswith('.py'):
 					task_name = i[:-3]
 					task_path = fullpathname[:-3].replace('/','.')
+					st.inst_leader = []
+					st.inst = st.inst_leader
 					task_module = importlib.import_module(task_path)
 					instances = task_module._instances if '_instances' in task_module.__dict__ else 1
 					print(col.blue + 'loading task',col.yellow, task_name, col.white)
 					for i in range(instances):
 						if i > 0:
+							st.inst = []
 							del sys.modules[task_path]
 							task_module = importlib.import_module(task_path)
 						self.add_task_func(task_name + ('#'+str(i) if instances > 1 else ''), task_module, i)
@@ -209,13 +219,19 @@ class TaskManager:
 		import types
 		if type(task_func) == types.FunctionType:
 			t=type(name,(),{'run':task_func})
+			d={}
 		else:
 			self.expose_task_commands(task_func)
 			d=task_func.__dict__
 			d['_i'] = instance
 			t=task_func
-			
+		
 		task = Task(name, t, instance)
+		if '_disabled' in d and d['_disabled'] == True:
+			task.state.set(DISABLED)
+		else:
+			task.state.set(PENDING)
+			
 		task.exported_cmds = self.exported_commands
 		self.tasks.append(task)
 		return task

@@ -1,7 +1,8 @@
 import asyncio
+end_time = 100
 async def timer_task():
 	time = 0
-	while time < 100:
+	while time < end_time:
 		await asyncio.sleep(1)
 		time+=1
 		print('time', time)

@@ -37,6 +37,7 @@ class Entities:
 	def add_entity(self, entity_type, entity_name, polygon, point=None, duration=0):
 		e = Entity(entity_type, entity_name, point, polygon, duration)
 		point = e.point
+		#print('add_entity: ', point)
 		if entity_type == 'friendly_robot':
 			friendly = self.get_entities(entity_type)
 			if friendly:

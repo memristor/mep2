@@ -1,127 +1,120 @@
-from core.Util import *
-from core.network.packet.SimplePacket import *
+# hello world code for driving robot
+from modules.default_config import motion	
 from modules.drivers.Servo import *
-from modules.sensors.BinaryInfrared import *
 
-# sim = False
-sim = True
-
-_core.set_robot_size(300,300)
-from modules.default_config import motion, timer, chinch, share, collision_wait_suspend
-can = _core.get_module('Can')
-
-##### Infrared ####
-_core.add_module([
-	BinaryInfrared('back middle', (0,0), (-500,0), packet_stream=can.get_packet_stream(0x80008d12)),
-	BinaryInfrared('back left', (0,0), (-500,0), packet_stream=can.get_packet_stream(0x80008d16)),
-	BinaryInfrared('front1', (0,0), (500,0), packet_stream=can.get_packet_stream(0x80008d14)),
-	BinaryInfrared('front2', (0,0), (500,0), packet_stream=can.get_packet_stream(0x80008d13))])
-cube_det = BinaryInfrared('block detection', (0,0), (0,0), packet_stream=can.get_packet_stream(0x80008d15))
-##################
-
-####### CAMERA ######
-from core.network.Tcp import *
-cam_tcp = Tcp(name='camera tcp server', port=5000)
-_core.add_module(cam_tcp)
-
-cam_cols = ['yellow', 'green', 'black', 'blue', 'orange']
-cam_ps = SimplePacket(5, cam_tcp.get_packet_stream())
-State.camera = False
-def on_cam_recv(pkt):
-	d = pkt.decode()
-	cols = [cam_cols[int(i)] for i in d.split(',')]
-	State.camera = True
-	State.combination = cols
-	print('camera:', cols)
-
-cam_ps.recv = on_cam_recv
-#############################
-
-####### LCD driver #######
-'''
-if not sim:
-	from modules.drivers.LCD import LCD
-	lcd=LCD()
-	_core.add_module(lcd)
-'''
-State.points = _State(0)
-State.small_points = _State(0)
-
-@_core.export_cmd
-@_core.do
-def addpts(pts):
-	if not sim:
-		print(col.red,'got ',pts, 'points',col.white)
-		State.points.val += pts
-		print('current points', State.points.val, State.small_points.val, State.points.val + State.small_points.val)
-		lcd.show_pts(State.points.val + State.small_points.val)
-##########################
-
-######## SHARE SERVICE ######
-@_core.listen('share:state_change')
-def share_state_change(name, new_val):
-	if name == 'small_points':
-		print('received points from small', share.get_state('small_points'), new_val)
-		print(col.red,'small ', new_val, 'points',col.white)
-		State.small_points = new_val
-		print('current points', State.points.val, State.small_points.val, State.points.val + State.small_points.val)
-		if not sim: lcd.show_pts(State.points.val + State.small_points.val)
-#############################
-
-######## STATIC OBSTACLES #######
-_core.entities.add_entity('static','big_terrain_obstacle',polygon_from_rect([-600,1000-260,1200,260]))
-cube_obstacles = [[650, -460], [1200, 190], [400, 500], [-650, -460], [-1200, 190], [-400, 500]]
-
-for i,v in enumerate(cube_obstacles):
-	_core.entities.add_entity('static','k'+str(i+1),polygon_square_around_point(v, 58*3))
-
-poles=[ [1500-80, 860-1000], [-(1500-80), 860-1000], [(1500-600), 1000-60], [-(1500-600), 1000-60] ]
-for i,v in enumerate(poles):
-	_core.entities.add_entity('static','pole'+str(i), polygon_square_around_point(v,100), point=v)
-#################################
-
-##### Actuator ###
+from modules.sensors.PressureSensor import *
+from core.network.Splitter import *
+motion.can.iface = 'can0'
+can=motion.can
+#VELIKIII
+	
 @_core.export_cmd
 @_core.do
 def pump(x, v):
-	can.send(bytes([v,v,v,0,v]), 0x6c10) if x == 0 else can.send(bytes([v]), 0x6c10+x)
-from .Actuator import Actuator
-act = Actuator(sim=sim)
-_core.add_module([act])
-##################
+	can.send(bytes([v])*5, 0x6c10) if x == 0 else can.send(bytes([v]), 0x6c10+x)
+#exit(0)
 
-_core.export_cmd('cube_detected', lambda: cube_det.detected)
+#### SERVOS ####
 
-#### PID
+servo_id = 0x80008d00
+spl = Splitter(can.get_packet_stream(servo_id))
+servo_rlift  = Servo('servo_rlift', servo_id=25, packet_stream=spl.get()) # izvuceno 211; medjupozicija 465; uvucano 537
+servo_llift = Servo('servo_llift', servo_id=24, packet_stream=spl.get()) # uvuceno 459; izv 843; medju 577
+
+servo_lfliper = Servo('servo_lfliper', servo_id=23, packet_stream=spl.get()) # 
+servo_rfliper = Servo('servo_rfliper', servo_id=22, packet_stream=spl.get()) # 
+servos = [servo_lfliper, servo_rfliper, servo_rlift, servo_llift]
+for i in servos: i.export_cmds(i.name)
+_core.add_module(servos)
+
+@_core.export_cmd
+@_core.do
+def rlift(v):
+	_e.servo_rlift.action('GoalPosition', [537, 465, 211][v])
+
+@_core.export_cmd
+@_core.do
+def llift(v):
+	_e.servo_llift.action('GoalPosition', [459, 577, 843][v])
+
+@_core.export_cmd
+@_core.do
+def lfliper(v):
+	_e.servo_lfliper.action('GoalPosition', [543, 248, 68][v])  #537, 465, 211
+
+@_core.export_cmd
+@_core.do
+def rfliper(v):
+	_e.servo_rfliper.action('GoalPosition', [423, 710, 888][v])
+
+
+pressure = [ PressureSensor('pressure'+str(i), i, can.get_packet_stream(0x80007800+i, 0x80007800)) for i in range(9) ]
+
+_core.add_module(pressure)
+for i in pressure: i.export_cmds(i.name)
+
+@_core.export_cmd
+def pressure(i):
+	a = getattr(_e, 'pressure%d' % i).picked()
+	return a
+#ZEKI DODAO
+
+############### LIFT ###########
+from modules.drivers.motion.Motion import *
+spl=Splitter(can.get_packet_stream(601))
+lift_drv = Motion(name='lift', packet_stream=spl.get())
+lift_drv.export_cmds('lift_drv')
+_core.add_module(lift_drv)
+State.lift_fut=[None]*2
+def lift_recv(p):
+	if p[0] == 0x40 and State.lift_fut[0]:
+		State.lift_fut[0].set_result(1)
+	elif p[0] == 0x21 and State.lift_fut[1]:
+		State.lift_fut[1].set_result(1)
+spl.get().recv=lift_recv
+
+lift_positions = {
+	'accel': 50000,
+	'golden': 400000,
+	'pri_vrhu': 1700000,
+	'sredina': 1800000
+}
+
+@_core.export_cmd
+def lift(l, pos, up=0, _future=None):
+	if State.sim: _future.set_result(1)
+	l = min(1, max(0, l))
+	if not State.lift_fut[l]: 
+		lift_drv.conf_set('encoder'+str(l)+'_max', 1860000)
+	State.lift_fut[l] = _future
+	if pos in lift_positions:
+		pt = lift_positions[pos]
+	elif type(pt) is int:
+		pt = pos
+	lift_drv.conf_set('setpoint'+str(l), pt - 200000 * up)
+###########################
+
+###### ROBOT DEFAULT INITIAL TASK #######
+
+
 @_core.init_task
 def init_task():
-	_e.r.conf_set('send_status_interval', 100)
-	_e.r.conf_set('wheel_distance', 255.2) #248.47
-	_e.r.conf_set('wheel_r1', 63.67) #61.92
-	_e.r.conf_set('wheel_r2', 64)
-	
-	if not sim:
-		_e.r.conf_set('pid_d_p', 3.7)
-		_e.r.conf_set('pid_d_d', 100)
-		_e.r.conf_set('pid_r_p', 4.0)
-		_e.r.conf_set('pid_r_d', 150)
-		_e.r.conf_set('pid_r_i', 0.013)
-	_e.r.speed(40)
-	_e.r.accel(600)
-	_e.r.conf_set('accel', 600)
-	_e.r.conf_set('alpha', 600) #650
-	
-	if not sim:
-		# _e.prepare_lift()
-		_e._print('initialized')
-		act.initialize()
-		_e._print('rot')
-		# _e.rotate(0)
-		_e._print('ready')
-	else:
-		_e.sleep(3)
-	_e.send_msg('small_go')
-	_e._print('started')
-	timer.start_timer()
-
-
+	servo_rlift.action('Speed',500)
+	servo_llift.action('Speed', 500)
+	servo_lfliper.action('Speed', 250)
+	servo_rfliper.action('Speed', 250)
+	_e._print('initialized task')
+	_e.lift_drv.send('/') # initialize lift
+	_e.r.send('R')
+	_e.r.conf_set('send_status_interval', 80)
+	if not State.sim:
+		_e.r.conf_set('wheel_r1', 72.768)
+		_e.r.conf_set('wheel_r2', 72.11807159)
+		_e.r.conf_set('wheel_distance', 276.621)
+		_e.r.conf_set('pid_d_p', 3.0)
+		_e.r.conf_set('pid_d_d', 140.0)
+		_e.r.conf_set('pid_r_p', 3.0)
+		_e.r.conf_set('pid_r_d', 140.0)
+		_e.r.conf_set('enable_stuck', 1)
+	_e.r.speed(30)
+	_e.r.accel(1000)

@@ -24,22 +24,43 @@ class PathfinderService:
 		self.prepare_pathfinder()
 	
 	def export_cmds(self):
-		 _core.export_cmd('pathfind', self.cmd_pathfind)
+		_core.export_ns('')
+		_core.export_cmd('testpath', self.pathfind)
+		_core.export_cmd('pathfind', self.cmd_pathfind)
 	
+	@_core.do(_atomic=1)
 	def cmd_pathfind(self, x,y,o=1):
+		t=_e._ref()
+		def on_entity(ent):
+			pos=_core.get_position()[:2]
+			if is_intersecting_poly([x,y], pos, ent.polygon):
+				_e.r.softstop(_future=None)
+				_e.sleep(1)
+				print('redoing path', [x,y], pos, ent.polygon)
+				if point_distance(pos, ent.point) < 300:
+					_e._redo(ref=t)
+				
+		#_e._listen('entity:new', on_entity)
+		#_e._listen('entity:refresh', on_entity)
+		
+		print('pathfinding ', x,y)
 		path = self.pathfind([x,y])
 		# print('pathfinding took:', dif())
 		# path = pathfinder.fix_path(path)
 		if not path:
 			print('!! no path !!')
 			_e._print('no path: ', x,y)
+			# _e.sleep(2)
+			# _e._goto('redo')
+			# _e._redo()
 			_e._task_suspend()
 			return False
 		else:
-			print('pathfinding: ', path)
+			print('found path: ', path)
 		for pt in path:
 			_e.r.goto(*pt,0)
-			# _e.r.move(*i,150,0)
+			# _e.r.diff_drive(*pt,0)
+			# _e.r.move(*pt,150,0)
 		return True
 	
 	def on_ent_remove(self, ent):
@@ -104,5 +125,6 @@ class PathfinderService:
 		self.process_ents(static_ents)
 		self.process_ents(dyn_ents)
 		path = self.pathfinder.Search(tuple(_core.get_position()[:2]), tuple(point))
+		print('pf:', path)
 		# if path: self.log(path)
 		return path

@@ -1,7 +1,9 @@
 _sim_mode=False
 _sim_time=0
 level=0
-class State: pass
+class State:
+	sim=0
+	recompile=0
 class StateBase:
 	def __init__(self, value=None, name=None):
 		self.name = name
@@ -41,21 +43,34 @@ class StateBase:
 	def __repr__(self):
 		return 'StateBase:'+str(self.get())
 
-class _State(StateBase):
+inst_leader = None
+inst = None
+class _State:
 	on_init=None
-	def __init__(self, value=None, name=None):
-		super().__init__(value,name)
-		if _State.on_init: _State.on_init()
+	def __init__(self, value=None, name=None, shared=True):
+		if shared and inst != inst_leader:
+			self.inst = inst_leader[len(inst)]
+			inst.append(self.inst)
+			print('using shared state')
+		else:
+			self.inst = StateBase(value, name)
+			inst.append(self.inst)
+
+		print('initing state')
+		if _State.on_init: _State.on_init(self, value, name, shared)
 		
 	@_core.do
 	def set(self, value):
-		return super().set(value)
+		return self.inst.set(value)
 		
-	val = property(StateBase.get, set)
-	
+	def get(self):
+		return self.inst.get()
+
+	val = property(get, set)
+
 	def __call__(self):
-		return self.val
+		return self.inst.val
 
 	@_core.do
 	def inc(self):
-		return super().inc()
+		return inst.inc()

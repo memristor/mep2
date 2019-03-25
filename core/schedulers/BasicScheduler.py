@@ -5,7 +5,7 @@ class BasicScheduler:
 	
 	def task_criteria(self, task):
 		return get_task_param(task, self.mode)
-		
+	
 	def pick_task(self, tasks):
 		tasks = [task for task in tasks if hasattr(task.module, self.mode)]
 		if tasks:

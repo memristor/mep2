@@ -3,6 +3,9 @@ from .Future import Future
 from .Util import _not, pick, col, get_func_args
 from .CommandList import *
 
+
+import traceback
+
 RUNNING = 'running'
 WAITING = 'waiting'
 SUSPENDED = 'suspended'
@@ -24,6 +27,7 @@ class Thread(CommandList):
 		s.sim_duration=StateBase(0)
 		s.sim_func=StateBase(None)
 		
+		s.parent=StateBase(None)
 		s.cmd = cmd # command it started thread
 		s.cmd.threads.append(s)
 		
@@ -129,7 +133,7 @@ class ListenInstance:
 class Task:
 	is_sim=False
 	last_sim = 0
-	
+	task_num = 0
 	def __init__(s, name, module, instance=0):
 		s.meta_commands = None
 		s.instance=instance
@@ -149,6 +153,7 @@ class Task:
 		return r
 	
 	def run_task(s, task_func=None, on_task_done_cb=None):
+		s.fut_queue = []
 		CommandList.new()
 		ret = task_func() if task_func else s.module.run()
 		if ret == False: return False
@@ -170,6 +175,37 @@ class Task:
 	def suspend(s):
 		s.stop_task(SUSPENDED)
 	
+	def block(s, queue_id, future):
+		el = next((a for a in s.fut_queue if a[0] == queue_id), None)
+		print('calling block', el, s.fut_queue)
+		tup = (queue_id, future)
+		s.fut_queue.append( tup )
+		print('calling block after', s.fut_queue)
+		def on_cancel():
+			print('cancelling ', tup)
+			# if s.fut_queue[0] == tup:
+				# s.notify(queue_id)
+			if tup != s.fut_queue[0] and tup in s.fut_queue:
+				s.fut_queue.remove( tup ) 
+		future.on_cancel.append(on_cancel)
+		
+		if el:
+			print('BLOCKED', s.fut_queue)
+			return False
+		else:
+			return future
+	
+	def notify(s, queue_id):
+		el = next((a for a in s.fut_queue if a[0] == queue_id), None)
+		print('notify', s.fut_queue)
+		if el:
+			s.fut_queue.remove(el)
+			el = next((a for a in s.fut_queue if a[0] == queue_id), None)
+			if el:
+				print('REDOING')
+				s.fut_queue.remove(el)
+				el[1].thread.redo()
+			
 	def get_ref(s, ref, default=None):
 		if type(ref) is Future: return ref.thread if ref.thread else default
 		ret=s.names[ref] if ref in s.names else default
@@ -181,6 +217,7 @@ class Task:
 		s.destroy_event()
 		# print('finishing task')
 		_core.emit('task:done', s.name)
+		Task.task_num += 1
 		prev_on_task_done = s.on_task_done
 		def f():
 			s.state.set(new_state)
@@ -204,9 +241,15 @@ class Task:
 			s.branches.remove(r)
 	
 	def run_cycle(s):
+		
 		b = s.branches.get()
-		for r in b: 
+		tn = s.task_num
+		for r in b:
+			if s.task_num != tn:
+				break
 			if r.state.get() != WAITING:
+				# print(r.name, 'run_cycle', [a.name for a in b])
+				# s.list_threads()
 				s.run_thread(r)
 		
 		if s.main_branch.state.get() == DONE and s.state.get() != DONE:
@@ -284,7 +327,8 @@ class Task:
 				CMD_REF: self.cmd_ref,
 				CMD_UNLISTEN: self.cmd_unlisten,
 				CMD_PICK_BEST: self.cmd_pick_best,
-				CMD_WAKE: self.cmd_wake
+				CMD_WAKE: self.cmd_wake,
+				CMD_REDO: self.cmd_redo
 				}
 		# print(cmd)
 		self.meta_commands[cmd.name[-1]](cmd, r)
@@ -292,9 +336,18 @@ class Task:
 	def is_meta_command(s, cmd): return cmd.name[-1][0] == '_'
 	def is_async_command(s,cmd): return cmd.name[-1][0] != '_'
 	
+	def list_threads(s):
+		print('running threads:')
+		for th in s.branches.get():
+			print('\tthread:',th.name)
 	### EXEC ###
 	def run_command(s, r):
 		cmd = r.get_current_command()
+		# print(r.name, 'runable ', r, 'doing cmd', cmd)
+		
+		# s.list_threads()
+		# traceback.print_stack()
+		# print(r.name, 'doing cmd', cmd)
 		if s.is_meta_command(cmd):
 			s.do_meta_command(cmd,r)
 			if s.is_sim and r.state.get() == RUNNING: s.sim_push_event(r)
@@ -358,6 +411,18 @@ class Task:
 			else:
 				r.wake()
 	
+	def cmd_redo(s, cmd, r):
+		# r.kill()
+		ref=pick('ref', cmd.kwargs, None, 0)
+		rn=s.get_ref(ref, None) if ref else r
+		
+		rn.parent.get().redo()
+		# rn.cancel()
+		rn.kill()
+		# rn.state.set(DONE)
+		print(r.id, 'is done')
+		r.inc_ip()
+		
 	def cmd_do(s, cmd, r):
 		if r.cmd_state.get() == 1:
 			r.inc_ip()
@@ -365,10 +430,13 @@ class Task:
 		else:
 			kwargs = cmd.kwargs.copy()
 			name=pick('_name', kwargs)
+			atomic=pick('_atomic', kwargs)
+			# if atomic:
+				# print('ATOMIC DO')
 			if not hasattr(cmd,'paused'):
 				cmd.paused = False
 			
-			if not cmd.paused:
+			if not cmd.paused or atomic:
 				cmd.clear()
 				with CommandList.save(cmd):
 					cmd.args[0](*cmd.args[1:], **kwargs)
@@ -379,6 +447,7 @@ class Task:
 					
 				rn = s.add_thread(Thread(cmd, sim_time=r.sim_time.val, name=name if name else 'some_thread'))
 				cmd.future.set_thread(rn)
+				rn.parent.set(r)
 			else:
 				print('was paused')
 				rn = cmd.future.thread
@@ -387,6 +456,7 @@ class Task:
 			def on_cancel():
 				rn.cancel()
 				print('on paused')
+				# if not atomic:
 				cmd.paused = True
 			cmd.paused = False
 			cmd.future.set_on_cancel(on_cancel)
@@ -457,7 +527,11 @@ class Task:
 			r.cmd_state.set(1)
 			ref=pick('ref', cmd.kwargs, None, 0)
 			rn=s.get_ref(ref, None) if ref else r
+			
+			# print('syncing ', ref, rn)
+			
 			if not rn:
+				print('inc ip')
 				r.inc_ip()
 				return
 			
@@ -501,7 +575,7 @@ class Task:
 						if cmd.wake_counter <= 0:
 							rn.wake(r)
 					r.on_done.append(on_done)
-			# print('thread ',rn.name, 'is waiting')
+			print('thread ', rn.name, 'is waiting')
 			rn.cancel()
 			rn.wait_signal()
 	
@@ -519,6 +593,7 @@ class Task:
 		
 		if cmd.commands:
 			rn = s.add_thread(Thread(cmd, sim_time=r.sim_time.val, name=name if name else 'some_thread'))
+			rn.parent.set(r)
 			if future:
 				def on_done():
 					nonlocal future
@@ -533,6 +608,10 @@ class Task:
 	
 	def on_listener(s, record, *args, **kwargs):
 		# print('listening: ', record, *args)
+		parent = record.cmd.parent
+		if hasattr(parent, 'paused') and parent.paused:
+			print('paused')
+			return
 		if s.is_sim: return
 		tr = record.type_record
 		if tr.disabled or record.disabled: return
@@ -547,6 +626,7 @@ class Task:
 				continue
 			# print('cmds:',id(CommandList.get()), CommandList.get().name, el[0])
 			# print('a repeat:',record.repeat)
+			
 			threads = record.cmd.threads = [r for r in record.cmd.threads if r.state.get() != DONE]
 			# print('got evt: ', tr.name, record.name, *args, len(threads))
 			res = False; fut=None
@@ -567,11 +647,15 @@ class Task:
 				break
 		
 		if not record.children:
-			tr.children.remove(record)
-			del s.evt_name[record.name]
+			try:
+				tr.children.remove(record)
+				del s.evt_name[record.name]
+			except:
+				# print('failed to remove children')
+				pass
 	
 	def cmd_listen(s, cmd, r):
-		# print('cmd listen', event_name, callback)
+		print('cmd listen', r.name)
 		r.inc_ip()
 		if s.is_sim: return
 		event_name, callback = cmd.args[0], cmd.args[1] if len(cmd.args) == 2 else None
@@ -617,6 +701,7 @@ class Task:
 			lr.listener = l
 			lr.repeat=repeat
 			cmd.threads=[]
+			cmd.parent = r.cmd
 		
 		once = cmd.name[1] != CMD_LISTEN
 		
@@ -679,7 +764,10 @@ class Task:
 	def cmd_task_done(s, cmd, r):
 		if s.state != LEAVING:
 			next_task = cmd.args[0] if cmd.args else None
-			if next_task:_core.task_manager.set_next_task(next_task)
+			if next_task:
+				# sched = pick(cmd.kwargs, 'schedule', False, 0)
+				_core.task_manager.set_next_task(next_task)
+			
 			s.stop_task()
 		else:
 			raise Exception('cannot finish task while leaving task')
@@ -718,17 +806,19 @@ class Task:
 		offset=pick('offset', kwargs, 0, 0)
 		if label is None:
 			lab = (0, r2.ip.get())
+		elif type(label) is int:
+			lab = (0, r2.ip.get())
+			offset = label
 		else:
 			lab=next((l for l in r2.labels if l[0] == label), None)
 		# print('LAB:',lab, r2.labels)
 		if lab:
 			if not s.is_sim and not r2.overflow(): # cancelation
-				r2.future = r2.get_current_command().future
-				r2.future.cancel()
+				future = r2.get_current_command().future
+				future.cancel()
 			r2.set_ip( min(len(r2.commands), max(0, lab[1]+offset)) )
 			r2.cmd_state.set(0)
 			r2.state.set(RUNNING)
 				
 		elif r == r2: raise Exception('no label to jump to')
 		if r != r2: r.inc_ip()
-		

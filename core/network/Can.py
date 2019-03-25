@@ -11,13 +11,16 @@ class Can:
 		self.debug = debug
 		self.packet_streams=[]
 	
-	def get_packet_stream(self, addr=None):
+	def get_packet_stream(self, raddr=None, saddr=None):
 		ps = PacketStream()
-		ps.addr = addr
+		if not saddr:
+			saddr = raddr
+		ps.raddr = raddr
+		ps.saddr = saddr
 		def wsend(pkt):
 			if type(pkt) is str:
 				pkt = pkt.encode('utf-8')
-			self.send(pkt, addr=ps.addr)
+			self.send(pkt, addr=ps.saddr)
 		ps.send = wsend
 		self.packet_streams.append(ps)
 		return ps
@@ -44,7 +47,7 @@ class Can:
 		while True:
 			frame = self._dissect_can_frame(await _core.loop.sock_recv(self.s, 16))
 			for i in self.packet_streams:
-				if i.recv != None and (i.addr == None or (i.addr != None and frame[0] == i.addr)):
+				if i.recv != None and (i.raddr == None or (i.raddr != None and frame[0] == i.raddr)):
 					i.recv(frame[2])
 
 	def run(self):

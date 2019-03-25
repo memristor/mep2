@@ -5,9 +5,15 @@ from core.Core import Core
 def main():
 	robot=os.environ['ROBOT']
 	core = Core(robot)
+	strat=''
+	for p in sys.argv[1:]:
+		if p.find('=') != -1:
+			s=p.split('=')
+			setattr(State, s[0], eval(s[1]))
+		else:
+			strat = p
 	core.load_config()
-	if len(sys.argv) > 1:
-		core.load_strategy(sys.argv[1])
+	if strat: core.load_strategy(strat)
 	core.start_strategy()
 	core.run()
 

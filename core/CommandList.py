@@ -71,7 +71,6 @@ CMD_ON = '_on'
 CMD_LISTEN = '_listen'
 CMD_UNLISTEN = '_unlisten'
 CMD_WAIT = '_wait'
-CMD_NEXT_CMD = '_next_cmd'
 CMD_GOTO = '_goto'
 CMD_REF = '_ref'
 CMD_THIS = '_this'
@@ -80,7 +79,7 @@ CMD_EMIT = '_emit'
 CMD_WHILE = '_while'
 CMD_PICK_BEST = '_pick_best'
 CMD_WAKE = '_wake'
-
+CMD_REDO = '_redo'
 class Command(CommandList):
 	def __init__(s, name='', params={}, command_list=None):
 		super().__init__(command_list)
@@ -237,7 +236,8 @@ meta_funcs = {
 	CMD_PICK_BEST: _pb._pick_best
 }
 
-cmds=[CMD_RETURN, CMD_TASK_SUSPEND, CMD_TASK_DONE, CMD_GOTO, CMD_NEXT_CMD, CMD_WAKE, CMD_UNLISTEN, CMD_EMIT, CMD_REF, CMD_THIS, CMD_ON, CMD_WAKE, CMD_SYNC]
+cmds=[CMD_RETURN, CMD_TASK_SUSPEND, CMD_TASK_DONE, CMD_GOTO, 
+CMD_WAKE, CMD_UNLISTEN, CMD_EMIT, CMD_REF, CMD_THIS, CMD_WAKE, CMD_SYNC, CMD_REDO]
 for i in cmds: meta_funcs[i] = wrap_gen(i)
-cmds_func=[(CMD_DO, 0), (CMD_SPAWN,0), (CMD_LISTEN, 1)]
+cmds_func=[(CMD_DO, 0), (CMD_SPAWN,0), (CMD_LISTEN, 1), (CMD_ON, 1)]
 for i,idx in cmds_func: meta_funcs[i] = wrap_gen_func(i,idx)

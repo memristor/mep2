@@ -13,4 +13,8 @@ def p16(x): return struct.pack('>H', to_uint16(x))
 # loading
 def l8(x, idx): return x[idx]
 def l16(x, idx): return struct.unpack('>h', x[idx:idx+2])[0]
+def l16l(x, idx): return struct.unpack('<h', x[idx:idx+2])[0]
+def lu16(x, idx): return struct.unpack('>H', x[idx:idx+2])[0]
+def lu16l(x, idx): return struct.unpack('<H', x[idx:idx+2])[0]
 def l32(x, idx): return struct.unpack('>i', x[idx:idx+4])[0]
+def l32l(x, idx): return struct.unpack('<i', x[idx:idx+4])[0]

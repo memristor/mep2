@@ -1,5 +1,5 @@
 from core.Convert import l16
-from core.Util import AABB, point_distance, add_pt, point_int
+from core.Util import *
 class Lidar:
 	def __init__(self, tolerance=300, tune_angle=0, packet_stream=None):
 		self.name = 'lidar'
@@ -12,10 +12,12 @@ class Lidar:
 		self.aabb = AABB()
 		
 	def on_recv(self,pkt):
+		if len(pkt) < 4: return
 		angle = l16(pkt, 0)
+#dist = l16(pkt, 2)/2
 		dist = l16(pkt, 2)
 		deg_angle = angle + self.tune_angle
-		vector = rot_vec_deg([dist]*2, deg_angle)
+		vector = rot_vec_deg([dist, 0], deg_angle)
 		self.processPoint(vector)
 		
 	def set_packet_stream(self, ps):

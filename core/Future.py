@@ -19,7 +19,7 @@ class Future:
 	def set_result(self, result):
 		# print('fut set result')
 		if not self.done():
-			self.result = result
+			self.result.val = result
 			if self.thread != None:
 				# print('waking thread:', self.thread.name)
 				self.thread.wake()

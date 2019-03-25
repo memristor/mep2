@@ -71,7 +71,7 @@ class Introspection:
 		elif j['request'] == 'sensor':
 			data = _core.sensors.get_sensor_data(j['type'], j['length'])
 			d = [i.abs2 for i in data]
-			print('sending sensor data',len(d))
+			# print('sending sensor data',len(d))
 			self.send_json({'response': 'sensor', 'type': j['type'], 'data': d})
 		elif j['request'] == 'put_entity':
 			pt = j['point']
@@ -84,7 +84,8 @@ class Introspection:
 			
 	async def loop(self):
 		await asyncio.sleep(0.1)
-		self.udp.broadcast( p16(self.port), self.announcer_port+1)
+		import random
+		self.udp.broadcast( p16(self.port) + p16(random.randint(0,2**16-1)), self.announcer_port+1)
 		while 1:
 			await asyncio.sleep(0.1)
 			p=_core.get_position()

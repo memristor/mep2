@@ -40,6 +40,7 @@ class Motion:
 		if chr(pkt[0]) == 'P':
 			if len(pkt) != 8: return
 			s,x,y,a = chr(pkt[1]), l16(pkt, 2), l16(pkt, 4), l16(pkt, 6)
+			self.tol = 0
 			# print(_core.look_vector())
 			if self.tol > 0 and point_distance([x,y], self.point) < self.tol:
 				self.resolve(True)
@@ -48,6 +49,9 @@ class Motion:
 			
 		if chr(pkt[0]) == 'p':
 			status = chr(pkt[1])
+			print(status)
+			if _core.state['state2'] == status:
+				return
 			_core.state['state2'] = status
 			
 			if status == 'I':
@@ -71,8 +75,9 @@ class Motion:
 		if self.future:
 			self.future.set_result(v)
 			self.future = None
+			# _core.state['state2'] = 'I'
 			print('motion resolved')
-
+			# _core.notify(self.name)
 
 	def send(self, x):
 		if self.disabled: return
@@ -107,7 +112,8 @@ class Motion:
 	def curve_cmd(self, x,y,alpha,dir=1): self.send(b'Q' + p16(x) + p16(y) + p16(alpha) + p8(dir))
 	def turn_cmd(self, o): self.send(b'T' + p16(o))
 	def stop_cmd(self): self.send(b'S')
-	def softstop_cmd(self): self.send(b's')
+	def motoroff_cmd(self): self.send(b's')
+	def softstop_cmd(self): self.send(b't')
 	def setpos_cmd(self, x=0,y=0,o=0): self.send(b'I' + p16(x) + p16(y) + p16(o))
 	def intr_cmd(self): self.send(b'i')
 	def forward_cmd(self, dist): self.send(b'D' + p16(dist))
@@ -119,9 +125,11 @@ class Motion:
 	#############################
 	
 	def on_cancel(self):
-		self.future = None
-		self.intr()
+		self.cancelling = True
+		# self.softstop()
+		# self.intr()
 		# print('on cancel')
+		# _core.state['state2'] = 'I'
 		
 	def export_cmds(self, namespace='r'):
 		self.namespace = namespace
@@ -139,6 +147,7 @@ class Motion:
 		_core.export_cmd('conf_set', self.conf_set)
 		_core.export_cmd('conf_get', self.conf_get)
 		_core.export_cmd('setpos', self.setpos)
+		_core.export_cmd('motoroff', self.motoroff)
 		_core.export_cmd('softstop', self.softstop)
 		_core.export_cmd('send', self.send_cmd)
 		_core.export_cmd('tol', self.tolerance)
@@ -156,10 +165,14 @@ class Motion:
 			self.accel(self._accel.val*1000, _sim)
 			self.speed_cmd(s)
 	
-	@_core.asyn2
-	def accel(self, a, _sim):
-		self._accel.val = a/1000
-		if not _sim:
+	def accel(self, a=None, _future=None, _sim=None):
+		if a: self._accel.val = a/1000
+		ret = self._accel.val*1000
+		if _future:
+			_future.set_result(ret)
+		else:
+			return ret
+		if a and not _sim:
 			self.conf_set('accel', a, _sim)
 			self.conf_set('alpha', a, _sim)
 	
@@ -204,7 +217,7 @@ class Motion:
 		
 	def fullstop(self):
 		self.intr_cmd()
-		self.softstop_cmd()
+		self.motoroff_cmd()
 		self.disabled = True
 		
 	@_core.module_cmd
@@ -242,8 +255,13 @@ class Motion:
 	
 	@_core.asyn2
 	def softstop(self):
-		self.future = None
+		self.intr()
 		self.softstop_cmd()
+		
+	@_core.asyn2
+	def motoroff(self):
+		self.future = None
+		self.motoroff_cmd()
 	
 	@_core.module_cmd
 	def absrot(self, a, _sim=0):
@@ -346,7 +364,7 @@ class Motion:
 		new=[x,y,o]
 		p = list(_core.get_position())
 		for i in range(3):
-			if new[i] != None: p[i] = new[i]
+			if new[i] != None: p[i] = int(new[i])
 		if not _sim:
 			self.print_cmd('setpos', *new)
 			self.setpos_cmd(*p)

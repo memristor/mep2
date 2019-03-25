@@ -31,6 +31,7 @@ class Core():
 		import signal
 		def on_interrupt(a,b): 
 			self.introspection.close()
+			self.emit('kill')
 			exit(0)
 		signal.signal(signal.SIGINT, on_interrupt)
 		
@@ -54,10 +55,12 @@ class Core():
 		self.get_current_task = self.task_manager.get_current_task
 		self.set_scheduler = self.task_manager.set_scheduler
 		
+		self.block = self.task_manager.block
+		self.notify = self.task_manager.notify
+		
 		class ExportNS:
 			def __call__(self, ns=None):
-				if not ns:
-					return 	_core.task_manager.export_ns()
+				if ns is None: return _core.task_manager.export_ns()
 				self.old = _core.task_manager.export_ns()
 				_core.task_manager.export_ns(ns)
 				return self
@@ -121,14 +124,13 @@ class Core():
 		
 	def load_strategy(self, strategy_name):
 		self.task_manager.load_tasks(self.robot, strategy_name)
-		self.task_manager.setup_init_task()
-		self.task_manager.set_task('init')
-		
+	
 	def fullstop(self):
 		for module in self.modules:
 			if hasattr(module, 'fullstop'):
 				module.fullstop()
 		self.task_manager.fullstop()
+		self.emit('round:end')
 		self.quit = True
 		
 	def expose_task_commands(self):
@@ -141,7 +143,7 @@ class Core():
 	def export_cmds(self):
 		
 		@self.export_cmd('sleep')
-		def sleep_cmd(s,_sim=False,_future=None):
+		def sleep_cmd(s,_sim=False, _future=None):
 			if _sim: return s
 			# print('sleeping')
 			c=self.loop.call_later(s, lambda: _future.set_result(1))
@@ -149,7 +151,12 @@ class Core():
 		
 		from contextlib import contextmanager
 		
-		@self.export_cmd
+		@_core.export_cmd
+		@_core.do
+		def _next_cmd():
+			_e._goto(1, ref='main')
+		
+		@_core.export_cmd
 		@contextmanager
 		def disabled(name):
 			# with gen_block((lambda: _e._unlisten(name)), (lambda: _e._listen(name))):
@@ -157,7 +164,7 @@ class Core():
 			yield
 			_e._listen(name)
 		
-		@self.export_cmd
+		@_core.export_cmd
 		@contextmanager
 		def _while(cond):
 			self.c_while += 1
@@ -171,12 +178,12 @@ class Core():
 			_e._goto(l)
 			_e._L(l2)
 			
-		@self.export_cmd
+		@_core.export_cmd
 		@_core.do
 		def _print(*args):
 			if not _e._sim: print(*args)
 		
-		@self.export_cmd
+		@_core.export_cmd
 		@_core.do
 		def _emit(*args, **kwargs):
 			_core.service_manager.emit(*args, **kwargs)
@@ -202,7 +209,7 @@ class Core():
 		self.loop = asyncio.get_event_loop()
 		self.introspection.run()
 		# run all modules
-		for i in self.modules:
+		for i in self.modules: 
 			if hasattr(i, 'run'): i.run()
 		print('loaded modules:', '\n\t' + '\n\t'.join([col.yellow + x.name + col.white + ' : class ' + type(x).__name__ for x in self.get_modules()]))
 		
@@ -226,11 +233,19 @@ class Core():
 		return self.task_manager.get_current_task().spawn(*args, **kwargs)
 	
 	# decorators
-	def do(self, f):
-		@functools.wraps(f)
-		def wrapper(*args, **kwargs):
-			return _e._do(f, *args, **kwargs)
-		return wrapper
+	def do(self, f=None, **kwargs2):
+		if f:
+			@functools.wraps(f)
+			def wrapper(*args, **kwargs):
+				return _e._do(f, *args, **kwargs)
+			return wrapper
+		else:
+			def fn(f):
+				@functools.wraps(f)
+				def wrapper(*args, **kwargs):
+					return _e._do(f, *args, **kwargs2, **kwargs)
+				return wrapper
+			return fn
 
 	def asyn2(s,f):
 		@functools.wraps(f)
@@ -246,6 +261,8 @@ class Core():
 			# set future to class instance
 			inst = args[0]
 			if _future:
+				# _future = s.block(inst.name, _future)
+				# if not _future: return
 				inst.future = _future
 				# if class has on_cancel method, call it when cancelling future
 				if hasattr(inst, 'on_cancel'):

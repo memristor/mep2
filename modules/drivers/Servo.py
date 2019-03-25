@@ -30,17 +30,21 @@ servo_commands = {
 	'Punch': [48, 'RW', 'h'],
 }
 import struct
+from core.Convert import l16
 class Servo:
 	def __init__(self, name, servo_id, packet_stream=None):
 		self.name = name
 		self.servo_id = servo_id
 		self.ps = packet_stream
-		
+		self.future = None
 	def set_packet_stream(self,ps):
 		self.ps = ps
-	
-	def action(self, f, val=None):
-		if f not in servo_commands:        
+	def export_cmds(self, ns=''):
+		with _core.export_ns(ns):
+			_core.export_cmd('action', self.action)
+	@_core.module_cmd
+	def action(self, f, val=None, poll=True):
+		if f not in servo_commands:
 			print('function ' + f + ' doesn\'t exist')
 			return
 
@@ -50,7 +54,7 @@ class Servo:
 		servo_len = 4
 		servo_func = cmd[0]
 		servo_rw = cmd[1]
-		servo_fmt = cmd[2]
+		pfmt=servo_fmt = cmd[2]
 
 		if val == None and 'R' not in servo_rw:
 			print('function ' + f + ' is not readable')
@@ -62,14 +66,12 @@ class Servo:
 
 		if val == None:
 			servo_rw = 2
-			servo_fmt = ''
+			servo_fmt = 'B'
+			servo_len = 4
 		else:
 			servo_rw = 3
-
-		if val == None:
-			servo_len = 3
-		elif servo_fmt == 'h':
-			servo_len += 1
+			if servo_fmt == 'h':
+				servo_len += 1
 
 		#  if addr == None:
 			#  addr = 0x7f00 if type(which) is int or servo[0] == 'ax' else 0x7f01
@@ -77,14 +79,48 @@ class Servo:
 		data = [servo_id, servo_len, servo_rw, servo_func]
 		if val != None:
 			data += [val]
-
+			self.val = val
+		else:
+			data += [2] if pfmt == 'h' else [1]
+			
 		self.ps.send(struct.pack(fmt, *data))
-		#  if val == None:
-			#  print('Sent request, waiting for answer')
-			#  while True:
-				#  frame = self._dissect_can_frame(self.s.recv(16))
+		
+		if State.sim and self.future:
+			self.future.set_result(1)
+		else:
+			# print(self.servo_id, self.name, 'starting cmd', f, self.val)
+			self.cur_action = f
+			if poll and f == 'GoalPosition' and self.val != None:
+				self.poll_status()
 				
-				#  if frame[0] == (addr | self.use_eff) and frame[1] > 0:
-					#  print(hex(frame[0]), Can.nice_hex(frame[2]))
-					#  return
-						
+			elif f not in ('GoalPosition', 'PresentPosition') and self.future:
+				self.future.set_result(1)
+		
+		
+	def poll_status(self):
+		self.action('PresentPosition', None, poll=False)
+		if self.val != None:
+			_core.loop.call_later(0.1, self.poll_status)
+		
+		
+	def recv(self, data):
+		if self.cur_action != 'PresentPosition' or not self.val or len(data) < 5:
+			return
+		# print(self.servo_id, self.cur_action, data)
+			
+		if data[0] != self.servo_id:
+			return
+		
+		if len(data) >= 5:
+			# print(self.servo_id, 'unpaking: ' , data, self.val)
+			r = struct.unpack('h', data[3:])[0]
+			# print('servo',data, r)
+			if abs(r - self.val) < 50:
+				if self.future: self.future.set_result(1)
+				self.val = None
+				# print('SERVO FINISHED')
+			
+		
+	def run(self):
+		# print('runnin')
+		self.ps.recv = self.recv

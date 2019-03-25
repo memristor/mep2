@@ -51,13 +51,19 @@ def load_boost_cpp_module(path, name=None):
 		name = path
 	# bin/<machine>/<module_name>.so
 	module_path = _name + '.bin.' + platform.machine() + '.' + name
-	try:
-		module = importlib.import_module(module_path)
-	except ModuleNotFoundError:
-		mod_path = _name.replace('.','/')
-		print(col.yellow, 'compiling module:', col.white, path)
-		os.system('make -C ' + mod_path)
-		module = importlib.import_module(module_path)
+	mod_path = _name.replace('.','/')
+	def _compile():
+		try:
+			module = importlib.import_module(module_path)
+		except ModuleNotFoundError:
+			print(col.yellow, 'compiling module:', col.white, path)
+			os.system('make -C ' + mod_path)
+			module = importlib.import_module(module_path)
+		return module
+	if State.recompile:
+		os.remove( module_path.replace('.','/') + '.so' )
+	module = _compile()
+	
 	return module
 
 # vector rotation

@@ -20,9 +20,11 @@ class BinaryInfrared:
 				self.sensor_map.add_sensor_point('infrared', self.name, self.sensor_position, pt)
 				
 	def on_recv(self, pkt):
-		if self.enabled:
-			self.detected = True if pkt[0] == 1 else False
-		print('binaryInfrared: ', self.name, pkt)
+		old = self.detected
+		if self.enabled: self.detected = True if pkt[0] == 1 else False
+		det=pkt[0]==1
+		if True or old != det:
+			print('binaryInfrared: ', self.name, pkt)
 		
 	def set_packet_stream(self, ps):
 		ps.recv = self.on_recv

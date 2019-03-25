@@ -8,6 +8,7 @@ def task(t):
 	print('task is done:',t)
 @_core.listen('config:done')
 def exec_config():
+
 	@_core.task_setup_func
 	def behaviour():
 		# using _repeat='replace' because while waiting for wait_time, opponent may get out of our way

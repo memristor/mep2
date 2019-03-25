@@ -27,26 +27,27 @@ class CollisionDetector:
 		self.evt.emit(self.state)
 		
 	def on_new_pt(self, pt):
-		if self.state == DANGER or _core.state['direction'] * pt.rel2[0] < 0:
+		# print('dir:',_core.state['direction'], pt.name, pt.rel1, pt.rel2)
+		if _core.state['direction'] * pt.rel2[0] < 0:
 			return
 			
 		#print('new pt', pt.rel2)
 		if _core.state['state'] == 'R':
 			# print('turning')
 			return
-		
+		# if pt.type == 'lidar': return False
 		if pt.type == 'lidar':
-			#  print('is lidar')
 			vlen = vector_length(pt.rel2)
-			if  vlen > 400:
+			if  vlen > 300:
 				return False
 		
+			#print('is lidar', vlen)
 			if math.degrees( abs( vector_angle_diff(pt.rel2, [1,0]) ) ) > self.det_angle:
 				return False
 			
 			if not is_in_rect(pt.abs2, add_pt(self.size, [100, 100, -200, -200])):
 				return False
-		
+		# print('danger>?', pt.rel2)
 		if self.is_dangerous(pt):
 			self.emit_danger()
 			
@@ -63,7 +64,6 @@ class CollisionDetector:
 		
 	def on_new_entity(self, ent):
 		if ent.type != 'robot': return
-			
 		if is_polygon_in_sector(ent.polygon, _core.get_position()[:2], _core.move_dir_vector(), self.det_distance, self.det_angle):
 			self.emit_danger()
 	
@@ -74,13 +74,13 @@ class CollisionDetector:
 		polygons = _core.entities.get_entities('static')
 		for poly in polygons:
 			if is_intersecting_poly(p1, p2, poly.polygon):
-				# print('inters poly', p1,p2, poly.aabb)
+				print('inters poly', p1,p2, poly.aabb)
 				return False
 		return True
 	
 	async def loop(self):
 		while 1:
-			await asyncio.sleep(0.3)
+			await asyncio.sleep(0.15)
 			if _core.state['state'] == 'R': continue
 			robots = _core.entities.get_entities('robot')
 			friendly = _core.entities.get_entities('friendly_robot')
