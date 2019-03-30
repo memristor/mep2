@@ -37,6 +37,7 @@ class Motion:
 		print('\x1b[33m',name+':','\x1b[0m', *args)
 	
 	def on_recv(self, pkt):
+		
 		if chr(pkt[0]) == 'P':
 			if len(pkt) != 8: return
 			s,x,y,a = chr(pkt[1]), l16(pkt, 2), l16(pkt, 4), l16(pkt, 6)
@@ -412,7 +413,7 @@ class Motion:
 	def conf_set(self, k, v, dec=4):
 		if k in config_floats:
 			fv = float(v)
-			dec = 0 if fv == 0 else 9 - ( int(math.log10(abs(fv))) + 1 )
+			dec = max(0, 0 if fv == 0 else 9 - ( int(math.log10(abs(fv))) + 2 ))
 			v = fv
 		key = p8(self.conf_get_key(k)) if not self.use_hash else p16(simple_hash(k))
 		to_send = bytearray(self.conf_float_to_bytes(v,dec))

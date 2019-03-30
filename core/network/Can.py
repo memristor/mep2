@@ -2,8 +2,8 @@ import asyncio, socket, struct
 from .packet.PacketStream import *
 
 class Can:
-	def __init__(self, iface='can0', addr=0, debug=0):
-		self.name = 'Can'
+	def __init__(self, iface='can0', name='Can', addr=0, debug=0):
+		self.name = name
 		self.addr = addr
 		self.iface = iface
 		self.can_frame_fmt = '=IB3x8s'
@@ -15,8 +15,8 @@ class Can:
 		ps = PacketStream()
 		if not saddr:
 			saddr = raddr
-		ps.raddr = raddr
-		ps.saddr = saddr
+		ps.raddr = raddr | self.use_eff
+		ps.saddr = saddr | self.use_eff
 		def wsend(pkt):
 			if type(pkt) is str:
 				pkt = pkt.encode('utf-8')

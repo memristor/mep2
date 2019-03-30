@@ -75,21 +75,33 @@ spl.get().recv=lift_recv
 
 lift_positions = {
 	'accel': 50000,
-	'golden': 400000,
+	'goldenium': 400000,
 	'pri_vrhu': 1700000,
 	'sredina': 1800000
 }
 
 @_core.export_cmd
+def init_lift(_future):
+	lift_drv.future = _future
+	# motion.motion.future = _future
+	if State.sim: _future.set_result(1)
+	lift_drv.conf_set('init_dir1', -1)
+	lift_drv.conf_set('init_dir2', -1)
+	lift_drv.conf_set('speed1', 50)
+	lift_drv.conf_set('speed2', 50)
+	lift_drv.send('/')
+
+@_core.export_cmd
 def lift(l, pos, up=0, _future=None):
 	if State.sim: _future.set_result(1)
-	l = min(1, max(0, l))
+	l = min(2, max(1, l))
 	if not State.lift_fut[l]: 
 		lift_drv.conf_set('encoder'+str(l)+'_max', 1860000)
 	State.lift_fut[l] = _future
+	pt = 0
 	if pos in lift_positions:
 		pt = lift_positions[pos]
-	elif type(pt) is int:
+	elif type(pos) is int:
 		pt = pos
 	lift_drv.conf_set('setpoint'+str(l), pt - 200000 * up)
 ###########################
@@ -103,8 +115,8 @@ def init_task():
 	servo_llift.action('Speed', 500)
 	servo_lfliper.action('Speed', 250)
 	servo_rfliper.action('Speed', 250)
+	init_lift()
 	_e._print('initialized task')
-	_e.lift_drv.send('/') # initialize lift
 	_e.r.send('R')
 	_e.r.conf_set('send_status_interval', 80)
 	if not State.sim:

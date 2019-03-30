@@ -1,0 +1,25 @@
+def run():
+		sleep(2)
+		r.speed(20)
+		r.forward(10)
+	
+		r.curve_rel(-205,90)
+		r.speed(60)
+		#r.absrot(90)
+		sleep(0.1)
+		
+		r.forward(700)
+		sleep(0.1)
+		r.forward(-50)
+		sleep(0.1)
+		r.forward(50)
+		sleep(0.1)
+		r.forward(-50)
+		sleep(0.1)
+		r.forward(50)
+		sleep(0.1)
+		r.forward(-700)
+		sleep(0.1)
+
+		r.speed(20)
+		r.curve_rel(-205, -90)
