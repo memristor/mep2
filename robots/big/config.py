@@ -61,16 +61,16 @@ def pressure(i):
 
 ############### LIFT ###########
 from modules.drivers.motion.Motion import *
-spl=Splitter(can.get_packet_stream(601))
+spl=Splitter(can.get_packet_stream(0x80000259))
 lift_drv = Motion(name='lift', packet_stream=spl.get())
 lift_drv.export_cmds('lift_drv')
 _core.add_module(lift_drv)
 State.lift_fut=[None]*2
 def lift_recv(p):
-	if p[0] == 0x40 and State.lift_fut[0]:
-		State.lift_fut[0].set_result(1)
-	elif p[0] == 0x21 and State.lift_fut[1]:
+	if p[0] == 0x40 and State.lift_fut[1]:
 		State.lift_fut[1].set_result(1)
+	elif p[0] == 0x21 and State.lift_fut[0]:
+		State.lift_fut[0].set_result(1)
 spl.get().recv=lift_recv
 
 lift_positions = {
@@ -95,9 +95,9 @@ def init_lift(_future):
 def lift(l, pos, up=0, _future=None):
 	if State.sim: _future.set_result(1)
 	l = min(2, max(1, l))
-	if not State.lift_fut[l]: 
+	if not State.lift_fut[l-1]: 
 		lift_drv.conf_set('encoder'+str(l)+'_max', 1860000)
-	State.lift_fut[l] = _future
+	State.lift_fut[l-1] = _future
 	pt = 0
 	if pos in lift_positions:
 		pt = lift_positions[pos]
