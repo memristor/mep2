@@ -54,8 +54,9 @@ _core.add_module(pressure)
 for i in pressure: i.export_cmds(i.name)
 
 @_core.export_cmd
-def pressure(i):
-	a = getattr(_e, 'pressure%d' % i).picked()
+def pressure(i): # i - pump num
+	i2 = [0, 3, 4, 1, 8, 2, 0, 8, 2, 0][i % 10]
+	a = getattr(_e, 'pressure%d' % i2).picked()
 	return a
 #ZEKI DODAO
 
@@ -87,8 +88,8 @@ def init_lift(_future):
 	if State.sim: _future.set_result(1)
 	lift_drv.conf_set('init_dir1', -1)
 	lift_drv.conf_set('init_dir2', -1)
-	lift_drv.conf_set('speed1', 50)
-	lift_drv.conf_set('speed2', 50)
+	lift_drv.conf_set('speed1', 100)
+	lift_drv.conf_set('speed2', 100)
 	lift_drv.send('/')
 
 @_core.export_cmd

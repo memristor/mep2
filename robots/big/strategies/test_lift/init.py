@@ -5,6 +5,10 @@ def run():
 	lift(1, 'pri_vrhu')
 	
 	lift(2, 'goldenium')
+	lift(2, 'goldenium',1)
 	lift(2, 'accel')
+	lift(2, 'accel',1)
 	lift(2, 'sredina')
+	lift(2, 'sredina',1)
 	lift(2, 'pri_vrhu')
+	lift(2, 'pri_vrhu',1)
