@@ -80,6 +80,7 @@ CMD_WHILE = '_while'
 CMD_PICK_BEST = '_pick_best'
 CMD_WAKE = '_wake'
 CMD_REDO = '_redo'
+CMD_PARALLEL = '_parallel'
 class Command(CommandList):
 	def __init__(s, name='', params={}, command_list=None):
 		super().__init__(command_list)
@@ -89,15 +90,16 @@ class Command(CommandList):
 		s.kwargs={}
 		s.threads = []
 
-	#TODO: remove
-	def __repr__(s):
+	def print_command(s):
 		with inc_tab():
 			msg = tabs() + '=========='+\
 				tabs() + 'Command ' + str(s.name) +\
 				tabs() + 'commands: ' + str(s.commands) +\
 				tabs() + '==========='+tabs()
 		return msg
-
+		
+	def __repr__(s):
+		return str(s.name)
 def gen_cmd(name, *args, **kwargs):
 	if type(name) is not tuple: name = ('', name)
 	cmd = Command(name)
@@ -123,6 +125,10 @@ def gen_cmd_func(name, index, *args, **kwargs):
 			g.cmd.args.insert(index, func)
 		g.call = set_func
 	return g
+
+def put_cmd(cmd):
+	CommandList.get().add_cmd(cmd)
+	return cmd.future
 
 def wrap_gen(name): return lambda *args, **kwargs: gen_cmd(name, *args, **kwargs)
 def wrap_gen_func(name, index=0): return lambda *args, **kwargs: gen_cmd_func(name, index, *args, **kwargs)
@@ -161,9 +167,11 @@ class BlockParallel(Block):
 	def __exit__(self, *exc):
 		cmds = self.stop()
 		for i in cmds.commands:
-			_do(lambda: i)
+			def f(a):
+				put_cmd(a)
+			c = gen_cmd(CMD_SPAWN, f, i)
 		
-	def _parallel(self, cond):
+	def _parallel(self):
 		self.start()
 		return self
 
@@ -219,11 +227,12 @@ class BlockIf(Block):
 def gen_block(_enter,_exit):
 	blk_start = CommandList.get_pos()
 	yield
-	CommandList.get().add_block((blk_start,CommandList.get_pos(), (_enter,_exit)))
+	CommandList.get().add_block((blk_start, CommandList.get_pos(), (_enter,_exit)))
 
 # __while = BlockWhile()
 _if = BlockIf()
 _pb = BlockPickBest()
+_parallel = BlockParallel()
 
 meta_funcs = {
 	CMD_LABEL: _label,
@@ -233,7 +242,8 @@ meta_funcs = {
 	CMD_ELSE: _if._else,
 	CMD_END_IF: _if._end_if,
 	
-	CMD_PICK_BEST: _pb._pick_best
+	CMD_PICK_BEST: _pb._pick_best,
+	CMD_PARALLEL: _parallel._parallel
 }
 
 cmds=[CMD_RETURN, CMD_TASK_SUSPEND, CMD_TASK_DONE, CMD_GOTO, 

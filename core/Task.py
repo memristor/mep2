@@ -114,7 +114,7 @@ class Thread(CommandList):
 				tabs() + 'Thread'+\
 				tabs() + 'ip: ' + str(s.ip.get())+\
 				tabs() + 'state: ' + s.state.get()+\
-				tabs() + 'cmd: ' + str(s.cmd) +\
+				tabs() + 'cmd: ' + str(s.cmd.print_command()) +\
 				tabs() + 'running: ' + str(s.commands) +\
 				tabs() + '----\n'
 		return msg
@@ -529,6 +529,9 @@ class Task:
 		s.label_syncs.set(list(filter(_not(cond), s.label_syncs.get())))
 		r.inc_ip()
 		# print('cmd_label',r.name, r.state.val, r.ip.val)
+	
+	def cmd_remove_label(s, cmd, r):
+		pass
 	
 	def cmd_sync(s, cmd, r):
 		if r.cmd_state.get() == 1:

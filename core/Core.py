@@ -6,7 +6,7 @@ class Core():
 	def __init__(self, robot):
 		self.robot=robot
 		self.quit = False
-		self.c_while = 0
+		self.unique_cnt = 0
 		import builtins
 		
 		# check if its already initialized anywhere
@@ -146,6 +146,10 @@ class Core():
 		print('called from:',mod.__name__)
 		self.task_manager.expose_task_commands(mod)
 	
+	def unique_num(self):
+		self.unique_cnt += 1
+		return self.unique_cnt
+		
 	def export_cmds(self):
 		
 		@self.export_cmd('sleep')
@@ -173,8 +177,7 @@ class Core():
 		@_core.export_cmd
 		@contextmanager
 		def _while(cond):
-			self.c_while += 1
-			l = '__local'+str(self.c_while)
+			l = '__local'+str(_core.uniq_num())
 			l2 = l+'skip'
 			_e._L(l)
 			fut=_e._ref()
@@ -238,7 +241,7 @@ class Core():
 	def spawn(self, *args, **kwargs):
 		return self.task_manager.get_current_task().spawn(*args, **kwargs)
 	
-	# decorators
+	########################## DECORATORS #########################
 	def do(self, f=None, **kwargs2):
 		if f:
 			@functools.wraps(f)
