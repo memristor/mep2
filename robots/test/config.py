@@ -21,6 +21,10 @@ def bad():
 State.strat_init=_State()
 State.init=_State()
 
+@_core.listen('state:init')
+def on_state(st, value=None, name=None, ishared=True, **kwargs):
+	print('new state', name, kwargs)
+
 @_core.init_task
 def init_task():
 	State.init.val = 'initialized'

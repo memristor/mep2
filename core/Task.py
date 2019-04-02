@@ -60,7 +60,7 @@ class Thread(CommandList):
 		return s.ip.get() >= len(s.commands)
 	
 	def get_current_command(s):
-		return s.commands[s.ip.get()]
+		return s.commands[s.ip.val]
 	
 	def run_on_done(s):
 		if _core.debug >= 2: print('runa done:',s.name)
@@ -72,6 +72,8 @@ class Thread(CommandList):
 		# _core.emit('thread:done', s.name)
 		# remove/disable listeners
 		for el in s.listeners: el.ref_count = 0
+		for th in s.cmd.threads:
+			if th != s: th.kill()
 		s.on_done.clear()
 		s.wake_on_done.clear()
 	
@@ -83,7 +85,6 @@ class Thread(CommandList):
 		s.future = f
 	
 	def kill(s):
-		s.cancel()
 		s.run_on_done()
 		s.state.set(DONE)
 	

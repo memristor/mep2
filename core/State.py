@@ -46,7 +46,6 @@ class StateBase:
 inst_leader = None
 inst = None
 class _State:
-	on_init=None
 	def __init__(self, value=None, name=None, ishared=True, **kwargs):
 		if ishared and inst != inst_leader:
 			self.inst = inst_leader[len(inst)]
@@ -60,11 +59,14 @@ class _State:
 
 		if _core.debug:
 			print('initing state')
-		if _State.on_init: _State.on_init(self, value, name, ishared1, **kwargs)
+		_core.emit('state:init', self, value, name, **kwargs)
 		
 	@_core.do
 	def set(self, value):
-		return self.inst.set(value)
+		old = self.inst.get()
+		if old != value:
+			_core.emit('variable:change', old, value)
+			self.inst.set(value)
 		
 	def get(self):
 		return self.inst.get()
@@ -76,4 +78,6 @@ class _State:
 
 	@_core.do
 	def inc(self):
+		old = self.inst.get()
+		_core.emit('variable:change', old, old+1)
 		return self.inst.inc()
