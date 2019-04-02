@@ -87,6 +87,10 @@ class Core():
 	def listen(self, name, func=None):
 		l=self.service_manager.listen
 		return (lambda func: l(name, func)) if not func else l(name, func)
+		
+	def on(self, name, func=None):
+		l=self.service_manager.listen_once
+		return (lambda func: l(name, func)) if not func else l(name, func)
 	
 	def set_position(self, x,y,o):
 		self.position.set([x,y])

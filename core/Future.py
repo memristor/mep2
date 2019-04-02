@@ -62,7 +62,7 @@ class Future:
 		self.clear()
 	
 	def cancel(self):
-		if self.state.val != CANCELLED:
+		if self.state.val == PENDING:
 			self.state.val = CANCELLED
 			# print('canncel fut', self.on_cancel)
 			for on_cancel in self.on_cancel.val: on_cancel()

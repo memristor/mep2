@@ -63,9 +63,11 @@ class Thread(CommandList):
 		return s.commands[s.ip.get()]
 	
 	def run_on_done(s):
-		# print('runa done:',s.name)
+		if _core.debug >= 2: print('runa done:',s.name)
 		for w in s.wake_on_done.val: w.wake(s)
-		for d in s.on_done.val: d()
+		for d in s.on_done.val:
+			if _core.debug >= 3: print('on done func')
+			d()
 		s.cancel()
 		# _core.emit('thread:done', s.name)
 		# remove/disable listeners
@@ -106,7 +108,7 @@ class Thread(CommandList):
 	def set_ip(s,ip):
 		s.ip.set(ip)
 	
-	def __repr__(s):
+	def print_commands():
 		with inc_tab():
 			msg = tabs() + '----'+\
 				tabs() + 'Thread'+\
@@ -116,6 +118,8 @@ class Thread(CommandList):
 				tabs() + 'running: ' + str(s.commands) +\
 				tabs() + '----\n'
 		return msg
+	def __repr__(s):
+		return s.name
 
 class ListenerRecord:
 	def __init__(s, name, cmd=None):
@@ -175,6 +179,7 @@ class Task:
 	def suspend(s):
 		s.stop_task(SUSPENDED)
 	
+	###### block & notify #######
 	def block(s, queue_id, future):
 		el = next((a for a in s.fut_queue if a[0] == queue_id), None)
 		print('calling block', el, s.fut_queue)
@@ -205,7 +210,8 @@ class Task:
 				print('REDOING')
 				s.fut_queue.remove(el)
 				el[1].thread.redo()
-			
+	##############################
+	
 	def get_ref(s, ref, default=None):
 		if type(ref) is Future: return ref.thread if ref.thread else default
 		ret=s.names[ref] if ref in s.names else default
@@ -254,6 +260,8 @@ class Task:
 		
 		if s.main_branch.state.get() == DONE and s.state.get() != DONE:
 			s.stop_task(DONE)
+	################################
+	
 	
 	############## SIMULATOR ############
 	@staticmethod
@@ -511,7 +519,7 @@ class Task:
 		# wake all threads syncing on label
 		cond=lambda tpl: tpl[1] == label_name and (tpl[0] in (r, None))
 		for i in filter(cond, s.label_syncs.get()):
-			print('sync finished')
+			if _core.debug: print('sync finished')
 			i[2](r)
 		s.label_syncs.set(list(filter(_not(cond), s.label_syncs.get())))
 		r.inc_ip()
@@ -524,52 +532,77 @@ class Task:
 			r.cmd_state.set(0)
 		else:
 			c = cmd.args[0] if cmd.args else None # future or label
-			r.cmd_state.set(1)
+			
 			ref=pick('ref', cmd.kwargs, None, 0)
 			rn=s.get_ref(ref, None) if ref else r
-			evt=pick('evt', cmd.kwargs, None, 0)
+			evt=pick('event', cmd.kwargs, None, 0)
 			# print('syncing ', ref, rn)
 			
 			if not rn:
-				print('inc ip')
+				if _core.debug: print('sync has no reference!')
 				r.inc_ip()
 				return
 			
-			#TODO: remove?
 			if type(c) is Future:
 				c = [c]
 			
 			if type(evt) is str: # sync event
-				pass
-				
+				_core.on(evt, lambda:rn.wake())
+			
 			elif type(c) is str: # _sync(label)
 				label_name = c
+				# check if already passed
 				passed = next((l for l in s.passed_labels.get() if l[0] == label_name), False)
 				if passed: return
-					
-				def on_label(r2): rn.wake(r2)
+				# setting hook
+				def on_label(waker): rn.wake(waker)
 				s.label_syncs.append((None, label_name, on_label))
 				if _core.debug: print('[', rn.name, '] waiting label sync', label_name)
 			
 			elif type(c) is list:
 				cmd.wake_counter=len(c)
 				for i in c:
-					r=s.get_ref(i)
-					if not r or r.future.done():
+					r2=s.get_ref(i)
+					if not r2 or not r2.future or r2.future.done():
 						cmd.wake_counter-=1
 						continue
 					def on_done():
 						cmd.wake_counter-=1
-						if cmd.wake_counter <= 0:
-							rn.wake(r)
-					r.on_done.append(on_done)
-					
+						if cmd.wake_counter <= 0: rn.wake(r2)
+					r2.on_done.append(on_done)
+			
 			elif type(c) is int:
 				# wait unconditionally
 				pass
+			elif c is None:
+				# wait for active child threads to die
+				c = r.cmd.threads
+				if _core.debug >= 2:
+					print(r.name, 'active threads', r.cmd.threads)
+				if not c:
+					rn.inc_ip();
+					return
+				cmd.wake_counter=len(c)-1
+				for i in c:
+					if i == r: 
+						if _core.debug >= 2:
+							print('skipping ',r)
+						continue
+					r2=i
+					# test if invalid or already done
+					if not r2 or r2.future.done():
+						cmd.wake_counter-=1
+						continue
+						
+					def on_done():
+						cmd.wake_counter-=1
+						# print('dec', cmd.wake_counter)
+						if cmd.wake_counter <= 0: rn.wake(r2)
+					r2.on_done.append(on_done)
 			
 			if _core.debug: print('thread [', rn.name, '] is waiting')
-			rn.cancel()
+			r.cmd_state.set(1)
+			rn.cancel() # must cancel (how about pause?)
 			rn.wait_signal()
 	
 	def spawn(s, *args,  cmd=None, future=None, r=None, **kwargs):
@@ -586,6 +619,8 @@ class Task:
 		
 		if cmd.commands:
 			rn = s.add_thread(Thread(cmd, sim_time=r.sim_time.val, name=name if name else 'some_thread'))
+			# print('[',rn.name, '] setting parent [', r.name,']')
+			r.cmd.threads.append(rn)
 			rn.parent.set(r)
 			if future:
 				def on_done():
