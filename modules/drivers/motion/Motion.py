@@ -367,7 +367,7 @@ class Motion:
 		for i in range(3):
 			if new[i] != None: p[i] = int(new[i])
 		if not _sim:
-			self.print_cmd('setpos', *new)
+			self.print_cmd('setpos', *p)
 			self.setpos_cmd(*p)
 		_core.set_position(*p)
 

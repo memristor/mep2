@@ -2,6 +2,7 @@ import asyncio
 from .Util import Transform, rot_vec_deg, mul_pt, col, pick, point_distance, sub_pt
 import functools
 class Core():
+	debug=1
 	def __init__(self, robot):
 		self.robot=robot
 		self.quit = False
@@ -54,6 +55,7 @@ class Core():
 		# self.export_ns = self.task_manager.export_ns
 		self.get_current_task = self.task_manager.get_current_task
 		self.set_scheduler = self.task_manager.set_scheduler
+		self.get_scheduler = self.task_manager.get_scheduler
 		
 		self.block = self.task_manager.block
 		self.notify = self.task_manager.notify

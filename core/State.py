@@ -47,17 +47,20 @@ inst_leader = None
 inst = None
 class _State:
 	on_init=None
-	def __init__(self, value=None, name=None, shared=True):
-		if shared and inst != inst_leader:
+	def __init__(self, value=None, name=None, ishared=True, **kwargs):
+		if ishared and inst != inst_leader:
 			self.inst = inst_leader[len(inst)]
 			inst.append(self.inst)
-			print('using shared state')
+			if _core.debug:
+				print('using shared state')
 		else:
 			self.inst = StateBase(value, name)
-			inst.append(self.inst)
+			if inst:
+				inst.append(self.inst)
 
-		print('initing state')
-		if _State.on_init: _State.on_init(self, value, name, shared)
+		if _core.debug:
+			print('initing state')
+		if _State.on_init: _State.on_init(self, value, name, ishared1, **kwargs)
 		
 	@_core.do
 	def set(self, value):
@@ -73,4 +76,4 @@ class _State:
 
 	@_core.do
 	def inc(self):
-		return inst.inc()
+		return self.inst.inc()

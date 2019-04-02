@@ -22,6 +22,8 @@ class TaskManager:
 		
 	def set_scheduler(self, scheduler):
 		self.scheduler = scheduler
+	def get_scheduler(self):
+		return self.scheduler
 		
 	def schedule_task(self):
 		print(col.yellow,'scheduling next task',col.white)

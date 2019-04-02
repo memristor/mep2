@@ -527,7 +527,7 @@ class Task:
 			r.cmd_state.set(1)
 			ref=pick('ref', cmd.kwargs, None, 0)
 			rn=s.get_ref(ref, None) if ref else r
-			
+			evt=pick('evt', cmd.kwargs, None, 0)
 			# print('syncing ', ref, rn)
 			
 			if not rn:
@@ -537,25 +537,11 @@ class Task:
 			
 			#TODO: remove?
 			if type(c) is Future:
-				assert c.thread != None, 'sync future == None'
+				c = [c]
+			
+			if type(evt) is str: # sync event
+				pass
 				
-				if len(cmd.args) == 1: # _sync(future)
-					def on_done(): r.wake()
-					if c.done():
-						r.inc_ip()
-						return
-					else:
-						c.set_on_done(on_done)
-				else: # _sync(future, label)
-					#TODO: should implement?
-					label_name = cmd.args[1]
-					if label_name in c.thread.passed_labels.get():
-						r.inc_ip()
-						return
-						
-					def on_label(r2): r.wake(r2)
-					s.label_syncs.append((c.thread, label_name, on_label))
-					
 			elif type(c) is str: # _sync(label)
 				label_name = c
 				passed = next((l for l in s.passed_labels.get() if l[0] == label_name), False)
@@ -563,19 +549,26 @@ class Task:
 					
 				def on_label(r2): rn.wake(r2)
 				s.label_syncs.append((None, label_name, on_label))
-				print('waiting sync', label_name)
+				if _core.debug: print('[', rn.name, '] waiting label sync', label_name)
 			
 			elif type(c) is list:
+				cmd.wake_counter=len(c)
 				for i in c:
-					cmd.wake_counter=len(c)
 					r=s.get_ref(i)
-					if not r: continue
+					if not r or r.future.done():
+						cmd.wake_counter-=1
+						continue
 					def on_done():
 						cmd.wake_counter-=1
 						if cmd.wake_counter <= 0:
 							rn.wake(r)
 					r.on_done.append(on_done)
-			print('thread ', rn.name, 'is waiting')
+					
+			elif type(c) is int:
+				# wait unconditionally
+				pass
+			
+			if _core.debug: print('thread [', rn.name, '] is waiting')
 			rn.cancel()
 			rn.wait_signal()
 	
@@ -755,8 +748,7 @@ class Task:
 		r.inc_ip()
 		if ref:
 			r=s.get_ref(ref)
-			# print('got ref:' , r.name)
-			if not r: raise Exception('return reference not found')
+			if not r: raise Exception('_return ref= reference not found')
 		if r.future: r.future.set_result(cmd.args[0] if cmd.args else 1)
 		r.state.set(DONE)
 		r.run_on_done()
