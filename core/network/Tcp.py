@@ -13,6 +13,7 @@ class Tcp(asyncio.Protocol):
 		self.messages = []
 		self.future = None
 		self.transport = None
+		_core.on('kill', self.close)
 
 	@_core.module_cmd
 	def wait_client(self): pass
@@ -56,6 +57,8 @@ class Tcp(asyncio.Protocol):
 			
 	def connection_made(self, transport):
 		if self.future: self.future.set_result(1)
+		print(self.name, 'connected')
+		# _core.emit('tcp:connected', self.ip, self.port)
 		self.transport = transport
 
 	def data_received(self, data, addr=None):
@@ -70,6 +73,6 @@ class Tcp(asyncio.Protocol):
 		
 	def connection_lost(self, exc):
 		self.transport = None
-		
+	
 	def close(self):
 		if self.transport: self.transport.close()

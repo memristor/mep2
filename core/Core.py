@@ -11,8 +11,7 @@ class Core():
 		
 		# check if its already initialized anywhere
 		builtin_core = '_core'
-		if hasattr(builtins, builtin_core):
-			return
+		if hasattr(builtins, builtin_core): return
 		
 		# core instance is available everywhere in whole python environment
 		setattr(builtins, builtin_core, self)

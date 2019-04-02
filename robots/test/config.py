@@ -12,6 +12,12 @@ def msg(m): print('msg:',m)
 p.recv = msg
 ####
 
+if not hasattr(State, 'ip'):
+	State.ip = '0.0.0.0'
+
+from modules.default_config import share
+share.ip = State.ip
+
 @_core.export_cmd
 @_core.do
 def bad():
@@ -21,9 +27,30 @@ def bad():
 State.strat_init=_State()
 State.init=_State()
 
+@_core.listen('message')
+def msg(m):
+	print(m)
+
+State._shared=[]
 @_core.listen('state:init')
 def on_state(st, value=None, name=None, ishared=True, **kwargs):
-	print('new state', name, kwargs)
+	print('init state', name, kwargs)
+	if 'shared' in kwargs and kwargs['shared']:
+		st.shared = True
+		State._shared.append(st)
+		# set_state(name, value)
+
+@_core.listen('state:change')
+def st_change(st, old, new):
+	print('st ch:',old,new)
+	if hasattr(st, 'shared') and st.shared:
+		_core.get_module('share').set_state(st.name, new)
+
+@_core.listen('share:state_change')
+def st_change2(name,new):
+	n = next((i for i in State._shared if i.name == name), None)
+	if n: n._set(new,report=1)
+	
 
 @_core.init_task
 def init_task():

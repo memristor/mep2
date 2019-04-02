@@ -9,8 +9,8 @@ from core.Util import *
 from core.network.packet.ChunkPacket import *
 class ShareService:
 	
-	def __init__(self, packet_stream=None):
-		self.name = 'share service'
+	def __init__(self, name='share', packet_stream=None):
+		self.name = name
 		self.states = {}
 		self.set_packet_stream(packet_stream)
 		
@@ -47,7 +47,7 @@ class ShareService:
 			
 	def on_new_entity(self,ent):
 		if ent.type != 'static' and ent.type != 'friendly_robot':
-			print('share entity', ent.type)
+			if _core.debug >= 1: print('share entity', ent.type)
 			#  self.ps.send(bytes([SHARE_ENTITY]) + json.dumps(ent.__dict__).encode())
 		
 	def run(self):
@@ -65,7 +65,8 @@ class ShareService:
 		
 	@_core.do
 	def send_msg(self, msg):
-		print('sending:',msg)
+		if _core.debug >= 1:
+			print('sending:', msg)
 		self.ps.send(bytes([SHARE_MESSAGE]) + msg.encode())
 		
 	def export_cmds(self, namespace=''):

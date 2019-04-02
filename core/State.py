@@ -46,28 +46,38 @@ class StateBase:
 inst_leader = None
 inst = None
 class _State:
-	def __init__(self, value=None, name=None, ishared=True, **kwargs):
-		if ishared and inst != inst_leader:
-			self.inst = inst_leader[len(inst)]
-			inst.append(self.inst)
-			if _core.debug:
-				print('using shared state')
+	states={}
+	def __init__(self, value=None, name=None, ishared=True, local=True, **kwargs):
+		self.name = name
+		if not local:
+			if name in self.states:
+				self.inst = self.states[name]
+			else:
+				self.inst = StateBase(value, name)
+				self.states[name] = self.inst
 		else:
-			self.inst = StateBase(value, name)
-			if inst:
+			if ishared and inst != inst_leader:
+				self.inst = inst_leader[len(inst)]
 				inst.append(self.inst)
+				if _core.debug:
+					print('using shared state')
+			else:
+				self.inst = StateBase(value, name)
+				if inst: inst.append(self.inst)
 
-		if _core.debug:
-			print('initing state')
+		if _core.debug: print('initing state')
 		_core.emit('state:init', self, value, name, **kwargs)
 		
 	@_core.do
 	def set(self, value):
+		self._set(value)
+		
+	def _set(self, value, report=True):
 		old = self.inst.get()
 		if old != value:
-			_core.emit('variable:change', old, value)
+			if report: _core.emit('state:change', self, old, value)
 			self.inst.set(value)
-		
+	
 	def get(self):
 		return self.inst.get()
 
@@ -79,5 +89,5 @@ class _State:
 	@_core.do
 	def inc(self):
 		old = self.inst.get()
-		_core.emit('variable:change', old, old+1)
+		_core.emit('state:change', self, old, old+1)
 		return self.inst.inc()
