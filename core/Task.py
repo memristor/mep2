@@ -336,7 +336,8 @@ class Task:
 				CMD_UNLISTEN: self.cmd_unlisten,
 				CMD_PICK_BEST: self.cmd_pick_best,
 				CMD_WAKE: self.cmd_wake,
-				CMD_REDO: self.cmd_redo
+				CMD_REDO: self.cmd_redo,
+				CMD_RESET_LABEL: self.cmd_reset_label
 				}
 		# print(cmd)
 		self.meta_commands[cmd.name[-1]](cmd, r)
@@ -530,8 +531,15 @@ class Task:
 		r.inc_ip()
 		# print('cmd_label',r.name, r.state.val, r.ip.val)
 	
-	def cmd_remove_label(s, cmd, r):
-		pass
+	def cmd_reset_label(s, cmd, r):
+		lbl = cmd.args[0] if cmd.args else None
+		if lbl:
+			r.passed_labels.val = [i for i in r.passed_labels if i[0] != lbl]
+			s.passed_labels.val = [i for i in s.passed_labels if i[0] != lbl]
+		else:
+			r.passed_labels.clear()
+			s.passed_labels.clear()
+		r.inc_ip()
 	
 	def cmd_sync(s, cmd, r):
 		if r.cmd_state.get() == 1:
