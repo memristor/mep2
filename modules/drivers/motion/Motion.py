@@ -51,13 +51,15 @@ class Motion:
 		if chr(pkt[0]) == 'p':
 			status = chr(pkt[1])
 			print(status)
+			prev = _core.state['state2']
 			if _core.state['state2'] == status:
 				return
 			_core.state['state2'] = status
 			
 			if status == 'I':
 				_core.emit('motion:idle')
-				self.resolve(True)
+				if prev != 'S':
+					self.resolve(True)
 			elif status == 'S':
 				_core.emit('motion:stuck')
 			elif status == 'E':
@@ -148,6 +150,7 @@ class Motion:
 		_core.export_cmd('conf_set', self.conf_set)
 		_core.export_cmd('conf_get', self.conf_get)
 		_core.export_cmd('setpos', self.setpos)
+		_core.export_cmd('stuckpos', self.stuckpos)
 		_core.export_cmd('motoroff', self.motoroff)
 		_core.export_cmd('softstop', self.softstop)
 		_core.export_cmd('send', self.send_cmd)
@@ -370,12 +373,22 @@ class Motion:
 			self.print_cmd('setpos', *p)
 			self.setpos_cmd(*p)
 		_core.set_position(*p)
-
+	
+	@_core.do
+	def stuckpos(self, forw=1, x=None,y=None,o=None,_sim=0):
+		p=r.conf_set('enable_stuck', 1)
+		@_e._on('motion:stuck')
+		def on_stuck():
+			_goto('stuckpos_label', ref=p)
+		r.forward(forw * 500)
+		_e._L('stuckpos_label')
+		_e.setpos(x=x, y=y, o=o)
+	
 	def run(self):
 		_core.state['state2'] = 'I'
 		_core.state['state'] = 'I'
 		# _core.init_task(lambda: (self.intr(), self.setpos(0,0,0)))
-		
+	
 	############# CONFIG #############
 	def conf_list(self):
 		confs=config_bytes + config_ints + config_floats

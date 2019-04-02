@@ -342,7 +342,7 @@ class Task:
 		self.meta_commands[cmd.name[-1]](cmd, r)
 	
 	def is_meta_command(s, cmd): return cmd.name[-1][0] == '_'
-	def is_async_command(s,cmd): return cmd.name[-1][0] != '_'
+	def is_async_command(s, cmd): return cmd.name[-1][0] != '_'
 	
 	def list_threads(s):
 		print('running threads:')
@@ -424,7 +424,12 @@ class Task:
 		ref=pick('ref', cmd.kwargs, None, 0)
 		rn=s.get_ref(ref, None) if ref else r
 		
-		rn.parent.get().redo()
+		if rn.parent.val:
+			rn.parent.val.redo()
+		else:
+			r.set_ip(0)
+			r.cmd_state.val = 0
+			return
 		# rn.cancel()
 		rn.kill()
 		# rn.state.set(DONE)
@@ -590,7 +595,7 @@ class Task:
 						continue
 					r2=i
 					# test if invalid or already done
-					if not r2 or r2.future.done():
+					if not r2 or not r2.future or r2.future.done():
 						cmd.wake_counter-=1
 						continue
 						
@@ -634,7 +639,7 @@ class Task:
 		
 		return cmd.future
 	
-	def on_listener(s, record, *args, **kwargs):
+	def on_listener_event(s, record, *args, **kwargs):
 		# print('listening: ', record, *args)
 		parent = record.cmd.parent
 		if hasattr(parent, 'paused') and parent.paused:
@@ -724,7 +729,7 @@ class Task:
 			# type_rec << listener_rec
 			tr.children.append(lr)
 			args = list(cmd.args)
-			args[1] = lambda *args, **kwargs: s.on_listener(lr, *args, **kwargs)
+			args[1] = lambda *args, **kwargs: s.on_listener_event(lr, *args, **kwargs)
 			l = _core.service_manager.listen(*args, **cmd.kwargs)
 			lr.listener = l
 			lr.repeat=repeat

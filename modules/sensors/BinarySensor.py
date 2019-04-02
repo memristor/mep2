@@ -4,6 +4,7 @@ class BinarySensor:
 		self.name = name
 		self.future = None
 		self.state = state
+		self._disabled = False
 		if packet_stream:
 			self.set_packet_stream(packet_stream)
 			
@@ -17,7 +18,12 @@ class BinarySensor:
 	def get(self):
 		return self.state
 	
+	def disable(self, tf):
+		self._disabled = tf
+	
 	def on_recv(self, pkt):
+		if self._disabled: return
+		
 		if self.future and pkt[0] == self.trigg_on_state:
 			self.future.set_result(1)
 		self.state = pkt[0]
