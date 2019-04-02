@@ -7,13 +7,33 @@ import json, asyncio
 from core.Entities import Entity
 from core.Util import *
 from core.network.packet.ChunkPacket import *
+	
 class ShareService:
 	
 	def __init__(self, name='share', packet_stream=None):
 		self.name = name
 		self.states = {}
+		self._shared = []
 		self.set_packet_stream(packet_stream)
+		_core.listen('state:change', self.on_state_change)
+		_core.listen('state:init', self.on_state_init)
+	
+	def on_state_init(self, st, value=None, name=None, ishared=True, **kwargs):
+		if _core.debug >= 1:
+			print('init state', name, kwargs)
+		if 'shared' in kwargs and kwargs['shared']:
+			st.shared = True
+			self._shared.append(st)
 		
+	def update_state(self, name, new):
+		n = next((i for i in self._shared if i.name == name), None)
+		if n: n._set(new,report=1)
+	
+	def on_state_change(self, st, old, new):
+		if _core.debug >= 1: print('st ch:', old, new)
+		if hasattr(st, 'shared') and st.shared:
+			_core.get_module('share').set_state(st.name, new)
+				
 	def on_recv(self, pkt):
 		if not pkt: return
 		if pkt[0] == SHARE_MESSAGE:
@@ -31,12 +51,15 @@ class ShareService:
 			p=json.loads(pkt[1:])
 			self.states[ p[0] ] = p[1]
 			_core.emit('share:state_change', p[0], p[1])
+			self.update_state(p[0], p[1])
 			print('rcv state', p)
 			
 	def set_packet_stream(self, ps):
 		if ps:
 			self.ps = ChunkPacket(ps)
 			self.ps.recv = self.on_recv
+	
+	
 		
 	async def loop(self):
 		while True:
