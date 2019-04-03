@@ -1,12 +1,23 @@
 # hello world code for driving robot
-from modules.default_config import motion	
+from modules.default_config import motion,chinch
 from modules.drivers.Servo import *
+from modules.sensors.BinaryInfrared import *
 
 from modules.sensors.PressureSensor import *
 from core.network.Splitter import *
 motion.can.iface = 'can0'
 can=motion.can
 #VELIKIII
+
+from modules.default_config import collision_wait
+chinch.addr = 0x8d02
+##### Infrared ####
+_core.add_module([
+	BinaryInfrared('zadnji', (0,-50), (-300,-50), packet_stream=can.get_packet_stream(0x80008d05)),
+	BinaryInfrared('prednji levi', (0,50), (300,50), packet_stream=can.get_packet_stream(0x8008d03)),
+	BinaryInfrared('prednji desni', (0, -50), (300, -50), packet_stream=can.get_packet_stream(0x80008d04)),
+])
+##################
 	
 @_core.export_cmd
 @_core.do
@@ -68,10 +79,16 @@ lift_drv.export_cmds('lift_drv')
 _core.add_module(lift_drv)
 State.lift_fut=[None]*2
 def lift_recv(p):
-	if p[0] == 0x40 and State.lift_fut[1]:
-		State.lift_fut[1].set_result(1)
-	elif p[0] == 0x21 and State.lift_fut[0]:
-		State.lift_fut[0].set_result(1)
+	if p[0] == 0x40:
+		print('lift 1 should finish')
+		if State.lift_fut[1]:
+			State.lift_fut[1].set_result(1)
+			print('lift 1 done')
+	elif p[0] == 0x21:
+		print('lift 0 should finish')
+		if State.lift_fut[0]:
+			State.lift_fut[0].set_result(1)
+			print('lift 0 done')
 spl.get().recv=lift_recv
 
 lift_positions = {
@@ -99,6 +116,9 @@ def lift(l, pos, up=0, _future=None):
 	l = min(2, max(1, l))
 	if not State.lift_fut[l-1]: 
 		lift_drv.conf_set('encoder'+str(l)+'_max', 1860000)
+	p = State.lift_fut[l-1]
+	if p and not p.done():
+		print('had unfinished future !!!')
 	State.lift_fut[l-1] = _future
 	pt = 0
 	if pos in lift_positions:
@@ -139,6 +159,7 @@ def init_task():
 	_e.r.accel(1000)
 	@_e._on('message')
 	def go(m):
-		_e._label('go')
+			_e._label('go')
 #_e._sync('go')
+	_e.chinch()
 	timer.start_timer()

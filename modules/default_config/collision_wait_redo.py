@@ -18,9 +18,9 @@ def exec_config():
 		def on_collision(msg):
 			if msg == 'danger':
 				print(col.yellow, 'got collision', col.white)
-				_e._sync(ref='main') # stop task main thread
-				# _e.r.softstop() # stop robot
-				_e.r.stop() # stop robot
+				_e._sync(0,ref='main') # stop task main thread
+				_e.r.softstop() # stop robot
+				#_e.r.stop() # stop robot
 				'''
 				save = _e.r.accel()
 				@_do

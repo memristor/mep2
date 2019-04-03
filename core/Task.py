@@ -17,11 +17,15 @@ DISABLED = 'disabled'
 
 class Thread(CommandList):
 	num_instances = 0
-	def __init__(s, cmd: Command, commands=None, state=RUNNING, sim_time=0, ip=0, name='some_thread'):
+	def __init__(s, cmd: Command, commands=None, state=RUNNING, sim_time=0, ip=0, name=None):
 		assert type(cmd) == Command, 'Thread(cmd) => cmd must be type Command'
 		super().__init__(commands if commands is not None else cmd)
-		s.name = name
 		s.id = Thread.num_instances # for distinguishing
+		if not name:
+			s.name = 'thread'+str(s.id)
+		else:
+			s.name = name
+		
 		Thread.num_instances += 1 # counting how much threads were created
 		s.sim_time=StateBase(sim_time)
 		s.sim_duration=StateBase(0)
@@ -48,7 +52,7 @@ class Thread(CommandList):
 	def __lt__(s,v): return False
 	
 	def get_active_threads(s):
-		return [i for i in s.cmd.threads if i.state.val in (RUNNING, PENDING)]
+		return [i for i in s.cmd.threads if i.state.val != DONE]
 	@property
 	def future(s):
 		ip=s.ip.get()
@@ -71,11 +75,9 @@ class Thread(CommandList):
 			if _core.debug >= 3: print('on done func')
 			d()
 		s.cancel()
-		'''
 		if s.parent.val:
-	   		if s in s.parent.val.cmd.	
-			s.parent.val.cmd.threads.remove(s)
-		'''
+			if s in s.parent.val.cmd.threads:
+				s.parent.val.cmd.threads.remove(s)
 		# _core.emit('thread:done', s.name)
 		# remove/disable listeners
 		for el in s.listeners: el.ref_count = 0
@@ -127,7 +129,7 @@ class Thread(CommandList):
 				tabs() + '----\n'
 		return msg
 	def __repr__(s):
-		return s.name
+		return s.name+'('+s.state.val+') '
 
 class ListenerRecord:
 	def __init__(s, name, cmd=None):
@@ -467,7 +469,8 @@ class Task:
 					r.inc_ip()
 					return
 					
-				rn = s.add_thread(Thread(cmd, sim_time=r.sim_time.val, name=name if name else 'some_thread'))
+				rn = s.add_thread(Thread(cmd, sim_time=r.sim_time.val, 
+					name=name if name else 'thread' + str(_core.unique_num())))
 				cmd.future.set_thread(rn)
 				rn.parent.set(r)
 			else:
@@ -647,7 +650,7 @@ class Task:
 			cmd.ret=cmd.args[0](*cmd.args[1:], **kwargs)
 		
 		if cmd.commands:
-			rn = s.add_thread(Thread(cmd, sim_time=r.sim_time.val, name=name if name else 'some_thread'))
+			rn = s.add_thread(Thread(cmd, sim_time=r.sim_time.val, name=name if name else None))
 			# print('[',rn.name, '] setting parent [', r.name,']')
 			r.cmd.threads.append(rn)
 			rn.parent.set(r)

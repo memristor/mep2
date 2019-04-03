@@ -174,6 +174,11 @@ class Core():
 			_e._listen(name)
 		
 		@_core.export_cmd
+		@_core.do
+		def print_threads():
+			print( 'print_threads', _core.task_manager.get_current_task().main_branch.cmd.threads )
+		
+		@_core.export_cmd
 		@contextmanager
 		def _while(cond):
 			l = '__local'+str(_core.uniq_num())

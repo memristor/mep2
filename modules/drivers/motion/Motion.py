@@ -59,7 +59,7 @@ class Motion:
 				if s == 'S':
 					_core.emit('motion:stuck')
 				if ps in 'MR' and prev == 'I':
-					self.resolve(True)
+#self.resolve(True)
 					print('glitch resolved')
 			
 			_core.set_position(x,y,a)
@@ -275,7 +275,6 @@ class Motion:
 	
 	@_core.asyn2
 	def softstop(self):
-		self.intr()
 		self.softstop_cmd()
 		
 	@_core.asyn2
@@ -376,6 +375,7 @@ class Motion:
 	
 	@_core.module_cmd
 	def stop(self):
+		self.print_cmd('stop')
 		self.intr()
 		self.stop_cmd()
 	

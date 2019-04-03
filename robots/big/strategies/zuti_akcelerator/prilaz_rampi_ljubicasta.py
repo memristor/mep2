@@ -2,9 +2,9 @@ weight=15
 def run():
 		r.speed(120)
 		r.forward(60)
-		r.goto(-1265-10,500,1) #pridji(udji) u rampu
-		r.absrot(90)
+		r.goto(1265,500,1) #pridji(udji) u rampu
 		
+		r.absrot(90)
 		pump(7,1)
 		pump(8,1)
 		pump(9,1)
@@ -20,14 +20,16 @@ def run():
 		
 		r.speed(80)#20
 		r.forward(10)
-		r.curve_rel(-205,90)
+		r.curve_rel(+205,90)
 		#r.absrot(10)
 		#r.absrot(0)
 		#r.speed(60)
 		sleep(1)
+		r.absrot(180)
 		#PENJANJE GORE
 		#-1080   810
-		r.goto(-350,810,1)
+		r.goto(350,810,1)
+		
 		#r.forward(720)
 		pump(7,0)
 		pump(8,0)
@@ -35,17 +37,16 @@ def run():
 		sleep(0.1)
 		r.forward(-50)
 		r.forward(95)
-
+		
 		with _parallel():
 			rfliper(1)
 			lfliper(1)
-
-		_sync()
+		sleep(1)
 
 		with _parallel():
 			rfliper(0)
 			lfliper(0)	
-		_sync()
+		
 		#precka stuck mozda upaliti NEMA POTREBE
 		# r.conf_set('enable_stuck', 1)
 		# _on('motion:stuck', f)
@@ -69,6 +70,7 @@ def run():
 		r.speed(30) #20
 		#r.absrot(0)
 		r.curve_rel(-205, -90) #izlaz iz prilaza
+		
 		r.absrot(90)
 		#RESETOVANJE Y
 		r.speed(50)#50
