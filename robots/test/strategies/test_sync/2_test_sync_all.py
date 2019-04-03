@@ -43,5 +43,4 @@ def run():
 		sleep(5)
 		_emit('hehe')
 	_sync(evt='hehe')
-
 	# _redo()

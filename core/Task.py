@@ -47,6 +47,8 @@ class Thread(CommandList):
 	# for heap sort, just prevent crash
 	def __lt__(s,v): return False
 	
+	def get_active_threads(s):
+		return [i for i in s.cmd.threads if i.state.val in (RUNNING, PENDING)]
 	@property
 	def future(s):
 		ip=s.ip.get()
@@ -69,6 +71,11 @@ class Thread(CommandList):
 			if _core.debug >= 3: print('on done func')
 			d()
 		s.cancel()
+		'''
+		if s.parent.val:
+	   		if s in s.parent.val.cmd.	
+			s.parent.val.cmd.threads.remove(s)
+		'''
 		# _core.emit('thread:done', s.name)
 		# remove/disable listeners
 		for el in s.listeners: el.ref_count = 0
@@ -593,13 +600,13 @@ class Task:
 				pass
 			elif c is None:
 				# wait for active child threads to die
-				c = r.cmd.threads
+				c = r.get_active_threads()
 				if _core.debug >= 2:
 					print(r.name, 'active threads', r.cmd.threads)
-				if not c:
+				cmd.wake_counter=len(c)-1
+				if cmd.wake_counter <= 0:
 					rn.inc_ip();
 					return
-				cmd.wake_counter=len(c)-1
 				for i in c:
 					if i == r: 
 						if _core.debug >= 2:
@@ -611,9 +618,14 @@ class Task:
 						cmd.wake_counter-=1
 						continue
 						
+					if cmd.wake_counter <= 0:
+						rn.inc_ip();
+						return
+
 					def on_done():
 						cmd.wake_counter-=1
-						# print('dec', cmd.wake_counter)
+						if _core.debug >= 2:
+							print('dec', cmd.wake_counter, r.cmd.threads)
 						if cmd.wake_counter <= 0: rn.wake(r2)
 					r2.on_done.append(on_done)
 			

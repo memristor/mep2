@@ -40,12 +40,12 @@ def llift(v):
 @_core.export_cmd
 @_core.do
 def lfliper(v):
-	_e.servo_lfliper.action('GoalPosition', [543, 248, 68][v])  #537, 465, 211
+	_e.servo_lfliper.action('GoalPosition', [682, 389, 239][v])  #537, 465, 211
 
 @_core.export_cmd
 @_core.do
 def rfliper(v):
-	_e.servo_rfliper.action('GoalPosition', [423, 710, 888][v])
+	_e.servo_rfliper.action('GoalPosition', [251, 549, 703][v])
 
 
 pressure = [ PressureSensor('pressure'+str(i), i, can.get_packet_stream(0x80007800+i, 0x80007800)) for i in range(9) ]
@@ -88,8 +88,9 @@ def init_lift(_future):
 	if State.sim: _future.set_result(1)
 	lift_drv.conf_set('init_dir1', -1)
 	lift_drv.conf_set('init_dir2', -1)
-	lift_drv.conf_set('speed1', 100)
-	lift_drv.conf_set('speed2', 100)
+	lift_drv.conf_set('debug_encoders', 0)
+	lift_drv.conf_set('speed1', 200)# bilo 100
+	lift_drv.conf_set('speed2', 200)#bilo 100
 	lift_drv.send('/')
 
 @_core.export_cmd
@@ -109,17 +110,22 @@ def lift(l, pos, up=0, _future=None):
 
 ###### ROBOT DEFAULT INITIAL TASK #######
 
+from modules.default_config import share, timer
+share.port = 6000
+
 
 @_core.init_task
 def init_task():
 	servo_rlift.action('Speed',500)
 	servo_llift.action('Speed', 500)
-	servo_lfliper.action('Speed', 250)
-	servo_rfliper.action('Speed', 250)
+	servo_lfliper.action('Speed', 350)
+	servo_rfliper.action('Speed', 350)
 	init_lift()
+	_e.lift_drv.conf_set('speed1', 300)# bilo 100
+	_e.lift_drv.conf_set('speed2', 300)#bilo 100
 	_e._print('initialized task')
 	_e.r.send('R')
-	_e.r.conf_set('send_status_interval', 80)
+	_e.r.conf_set('send_status_interval', 100)
 	if not State.sim:
 		_e.r.conf_set('wheel_r1', 72.768)
 		_e.r.conf_set('wheel_r2', 72.11807159)
@@ -131,3 +137,8 @@ def init_task():
 		_e.r.conf_set('enable_stuck', 1)
 	_e.r.speed(30)
 	_e.r.accel(1000)
+	@_e._on('message')
+	def go(m):
+		_e._label('go')
+#_e._sync('go')
+	timer.start_timer()

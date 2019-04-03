@@ -813,7 +813,7 @@ def run():
 		_print('hey')
 	
 	# pause thread named 'some_name'
-	_sync(ref='some_name')
+	_sync(_ref='some_name')
 	
 	sleep(10)
 	# wake thread 'some_name'

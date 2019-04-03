@@ -9,8 +9,7 @@ def main():
 	for p in sys.argv[1:]:
 		if p.find('=') != -1:
 			s=p.split('=')
-			val = eval(s[1])
-			setattr(State, s[0], val)
+			setattr(State, s[0], eval(s[1]))
 		else:
 			strat = p
 	core.load_config()

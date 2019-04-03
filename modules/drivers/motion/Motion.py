@@ -56,6 +56,8 @@ class Motion:
 			if self.state_rep >= 10 and _core.state['state2'] != s:
 				ps = _core.state['state2']
 				_core.state['state2'] = s
+				if s == 'S':
+					_core.emit('motion:stuck')
 				if ps in 'MR' and prev == 'I':
 					self.resolve(True)
 					print('glitch resolved')
