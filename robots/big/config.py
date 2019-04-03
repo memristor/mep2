@@ -7,15 +7,17 @@ from modules.sensors.PressureSensor import *
 from core.network.Splitter import *
 motion.can.iface = 'can0'
 can=motion.can
+
 #VELIKIII
 
 from modules.default_config import collision_wait
 chinch.addr = 0x8d02
+
 ##### Infrared ####
 _core.add_module([
-	BinaryInfrared('zadnji', (0,-50), (-300,-50), packet_stream=can.get_packet_stream(0x80008d05)),
-	BinaryInfrared('prednji levi', (0,50), (300,50), packet_stream=can.get_packet_stream(0x8008d03)),
-	BinaryInfrared('prednji desni', (0, -50), (300, -50), packet_stream=can.get_packet_stream(0x80008d04)),
+	BinaryInfrared('zadnji', (-200,120), (-300,-50), packet_stream=can.get_packet_stream(0x80008d05)),
+	BinaryInfrared('prednji levi', (60, 100), (300,50), packet_stream=can.get_packet_stream(0x8008d03)),
+	BinaryInfrared('prednji desni', (60, -100), (300, -50), packet_stream=can.get_packet_stream(0x80008d04)),
 ])
 ##################
 	
@@ -58,6 +60,10 @@ def lfliper(v):
 def rfliper(v):
 	_e.servo_rfliper.action('GoalPosition', [251, 549, 703][v])
 
+######## STATIC OBSTACLES #######
+_core.entities.add_entity('static', 'rampa', [[-1050,500], [-35,500], [-35, 368], [45,352], [41, 536], [1055,516], [1089, 992], [-1041, 964], [-1050, 500]])
+_core.entities.add_entity('static', 'accelerator', [[-999,-932], [991, -944], [991, -1000], [-991,-1000]])
+#################################
 
 pressure = [ PressureSensor('pressure'+str(i), i, can.get_packet_stream(0x80007800+i, 0x80007800)) for i in range(9) ]
 
@@ -71,7 +77,7 @@ def pressure(i): # i - pump num
 	return a
 #ZEKI DODAO
 
-############### LIFT ###########
+############### LIFT ###################
 from modules.drivers.motion.Motion import *
 spl=Splitter(can.get_packet_stream(0x80000259))
 lift_drv = Motion(name='lift', packet_stream=spl.get())
@@ -80,15 +86,13 @@ _core.add_module(lift_drv)
 State.lift_fut=[None]*2
 def lift_recv(p):
 	if p[0] == 0x40:
-		print('lift 1 should finish')
 		if State.lift_fut[1]:
 			State.lift_fut[1].set_result(1)
-			print('lift 1 done')
+			if _core.debug >= 1: print('lift 2 done')
 	elif p[0] == 0x21:
-		print('lift 0 should finish')
 		if State.lift_fut[0]:
 			State.lift_fut[0].set_result(1)
-			print('lift 0 done')
+			if _core.debug >= 1: print('lift 1 done')
 spl.get().recv=lift_recv
 
 lift_positions = {
@@ -118,7 +122,7 @@ def lift(l, pos, up=0, _future=None):
 		lift_drv.conf_set('encoder'+str(l)+'_max', 1860000)
 	p = State.lift_fut[l-1]
 	if p and not p.done():
-		print('had unfinished future !!!')
+		print('lift unfinished !')
 	State.lift_fut[l-1] = _future
 	pt = 0
 	if pos in lift_positions:
@@ -126,7 +130,7 @@ def lift(l, pos, up=0, _future=None):
 	elif type(pos) is int:
 		pt = pos
 	lift_drv.conf_set('setpoint'+str(l), pt - 200000 * up)
-###########################
+#########################################
 
 ###### ROBOT DEFAULT INITIAL TASK #######
 
