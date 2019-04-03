@@ -1,43 +1,37 @@
 weight= 4
 # kupi prvi pak 
 def run():
+	# 90 je setpos
+	r.speed(120)
 	
-	
-	# 180 je set pos  
-	r.forward(-100)
-	
-	
-	r.turn(-60)
-	r.curve_rel(-380, -110)
-	r.curve_rel(-300, -100)
-	
-	r.goto(-850,250,-1)
-	sleep(1)
 
-	#ide do prvog 
-	r.goto(-1035,250,-1)
+	r.curve_rel(-200, -180)
+	
+
+	
+	
+	r.goto(-830,190,-1)
+	r.goto(-1035,300,-1)
+	
+	r.absrot(-90)
+	
+		
+	
 	@_spawn
 	def _():
-		#napgold(1)
+		nazgold(2)
 		pump(1,1) # (br_pumpe,upaljena)
-	r.speed(60)
-	#_label('a')
-	r.goto(-1035,390,-1)
-	sleep(2)
-	
-	#if not
-	#_goto('a')
+	r.speed(30)
+	sleep(0.5)
+	r.goto(-1035,450,-1)
+
 	r.speed(120)
 	r.goto(-1035,250,1)
-	sleep(1)
-	
+	@_do
+	def _():
+		if p1.val:
+			State.pokupio = 1
+	print('vrednost ', State.pokupio)
 	
 
-	r.goto(-150,250)
-	r.goto(-150,450,-1)
-	sleep(1)
-	r.goto(-150,250,1)
-	#r.goto(-800,-550,1)
-	#r.goto(-1150,-550,1)
-	#sleep(1)
 	

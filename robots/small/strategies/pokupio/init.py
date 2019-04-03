@@ -1,3 +1,3 @@
-State.pokupio = 1
+State.pokupio = 0
 def run():
 	pass

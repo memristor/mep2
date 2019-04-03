@@ -21,7 +21,7 @@ def run():
 	r.forward(200)
 	r.setpos(y=-920)
 	r.conf_set('enable_stuck', 0)
-	rrucica(1)
+	#rrucica(1)
 	r.forward(-100)
 	r.absrot(0)
 	r.goto(160,-860,-1)

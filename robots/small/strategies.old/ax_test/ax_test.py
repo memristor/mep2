@@ -1,0 +1,22 @@
+weight=4
+def run():
+	nazgold(2)
+	sleep(1)
+	nazgold(1)
+	sleep(1)
+	nazgold(0)
+	r.forward(5)
+	return
+	rfliper(0)
+	lfliper(2)
+	lfliper(1)
+	lfliper(0)
+	rrucica(1)
+	rrucica(0)
+	lrucica(1)
+	lrucica(0)
+	napgold(1)
+	napgold(0)
+	nazgold(2)
+	nazgold(1)
+	nazgold(0)

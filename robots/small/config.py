@@ -11,11 +11,12 @@ import socket
 
 # from modules.default_config import motion, collision_wait, chinch, lidar, timer, pathfind
 #from modules.default_config import motion, chinch, lidar, timer#, pathfind
-from modules.default_config import motion, collision_wait_redo, chinch, lidar, timer, pathfind
+#from modules.default_config import motion, collision_wait_redo, chinch, lidar, timer, pathfind
+from modules.default_config import motion, chinch, lidar, timer, pathfind
 lidar.tune_angle = -100+180-30+20+20
 # from modules.default_config import motion, chinch, lidar, timer
 
-
+chinch.addr = 0x7821
 #  sim = True
 sim = False
 
@@ -107,12 +108,12 @@ def lfliper(v):
 
 @_core.do
 def nazgold(v):
-	_e.servo_napredgold.action('GoalPosition', [77,300,674][v]) #674 je donji polozaj
+	_e.servo_napredgold.action('GoalPosition', [150,330,674][v]) #674 je donji polozaj, 300 je bio najvisi
 
 
 @_core.do
 def napgold(v):
-	_e.servo_nazadgold.action('GoalPosition', 416 if v == 1 else 83)
+	_e.servo_nazadgold.action('GoalPosition', [87,450,380][v])
 
 c=can
 @_core.export_cmd
@@ -134,6 +135,9 @@ core.export_cmd('lfliper', lfliper)
 core.export_cmd('napgold', napgold)
 core.export_cmd('nazgold', nazgold)
 
+from modules.default_config import share
+share.ip = '192.168.1.144'
+share.port = 6000
 ###### ROBOT DEFAULT INITIAL TASK #######
 def init_task():
 	servo_napredgold.action('Speed',200)
@@ -151,10 +155,10 @@ def init_task():
 	_e.r.conf_set('enable_stuck', 0)
 	print('init task loaded 1')
 	_e._do(lambda: print('init task loaded'))
-	_e.r.conf_set('wheel_r1', 70.1920648)	#levi tocak
-	_e.r.conf_set('wheel_r2', 69.04025833)	#desni tocak
-	_e.r.conf_set('wheel_distance', 252.917866401)	#idalno 275.92
-
+	_e.r.conf_set('wheel_r1', 63)	#levi tocak 70.1920648macak i bela menjali
+	_e.r.conf_set('wheel_r2', 63)	#desni tocak 69.04025833 bela i macak menjali
+	_e.r.conf_set('wheel_distance',253.917866401 + 0.1+0.05)	#idalno 275.92 252.917866401 
+	#bela dodao 0.1
 	_e.sleep(0.01)
 	if not State.sim:
 		_e.r.conf_set('pid_d_p', 2.2)
@@ -167,8 +171,9 @@ def init_task():
 	
 	_e.r.accel(800)
 	_e.r.speed(100)
-	# _e.chinch()
-	# timer.start_timer()
+	_e.chinch()
+	_e.send_msg('go')
+	timer.start_timer()
 
 # senzor pritiska
 # \x01 ili \x02 7800 => recv 7801, 7802 ( xx 0c => ne drzi, xx 02 => drzi )

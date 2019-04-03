@@ -1,13 +1,14 @@
 weight = 10
 
 def run():	
-	for i in range(5):
-		r.speed(50)
+
+	for i in range(9):
+		r.speed(100)
 		y=500
 		s=0.5
-		r.goto(1000,0)
+		r.goto(700,0)
 		sleep(s)
-		r.goto(1000,y)
+		r.goto(700,y)
 		sleep(s)	
 		r.goto(0,y)
 		sleep(s)

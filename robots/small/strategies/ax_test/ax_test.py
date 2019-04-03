@@ -1,12 +1,14 @@
 weight=4
 def run():
-	nazgold(2)
-	sleep(1)
-	nazgold(1)
-	sleep(1)
-	nazgold(0)
-	r.forward(5)
-	return
+	with _while(1):
+		napgold(2)
+		return
+		sleep(2)
+		napgold(1)
+		sleep(2)
+		napgold(0)
+		
+	
 	rfliper(0)
 	lfliper(2)
 	lfliper(1)
