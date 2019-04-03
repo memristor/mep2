@@ -152,6 +152,8 @@ class TaskManager:
 			def run_this():
 				# run default func
 				_core.emit('task:new', task.name)
+				self.expose_task_commands(task.module)
+				task.exported_cmds = self.exported_commands
 				if task.module.run() is False: return False
 			
 			def on_task_done():

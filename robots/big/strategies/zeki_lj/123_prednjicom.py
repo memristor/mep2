@@ -1,6 +1,7 @@
 weight=14
 def run():
-		r.goto(-1100,200,-1)
+		r.speed(120)
+		r.goto(-1100,360,-1) #izravnaj se dodati TOF NA OVOJ SU STRANI
 		r.goto(-800,360,1) #izravnaj se dodati TOF NA OVOJ SU STRANI
 		r.absrot(0)
 		

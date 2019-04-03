@@ -2,7 +2,7 @@ import asyncio
 from .Util import Transform, rot_vec_deg, mul_pt, col, pick, point_distance, sub_pt
 import functools
 class Core():
-	debug=2
+	debug=0
 	def __init__(self, robot):
 		self.robot=robot
 		self.quit = False

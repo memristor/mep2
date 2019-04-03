@@ -1,7 +1,8 @@
 weight=15
 def run():
+		_unlisten('collision')
 		r.speed(120)
-		r.goto(-1270,500,1) #pridji(udji) u rampu
+		r.goto(-1275,500,1) #pridji(udji) u rampu
 		r.absrot(90)
 		
 		pump(7,1)
@@ -14,10 +15,11 @@ def run():
 		r.conf_set('enable_stuck', 1)
 		_on('motion:stuck', f)
 		r.forward(500)
+		r.speed(100)
 		r.conf_set('enable_stuck', 0) # upali stuck
 		r.forward(-340) # izvuci se za kurvu
 		
-		r.speed(60)#20
+		r.speed(80)#60
 		r.forward(10)
 		r.curve_rel(-205,90)
 		#r.absrot(10)
@@ -34,16 +36,16 @@ def run():
 		sleep(0.1)
 		r.forward(-50)
 		r.forward(95)
-		rfliper(1)
 		@_spawn
 		def _():
 			lfliper(1)
+		rfliper(1)
 		sleep(2)
-		rfliper(0)
+
 		@_spawn
 		def _():
 			lfliper(0)	
-		
+		rfliper(0)
 		#precka stuck mozda upaliti NEMA POTREBE
 		# r.conf_set('enable_stuck', 1)
 		# _on('motion:stuck', f)
@@ -52,9 +54,8 @@ def run():
 		#r.conf_set('enable_stuck', 0)
 		
 		#SPUSTANJE DOLE
-		r.speed(60) #brzina spustanja nizs rampu 60
+		r.speed(80) #brzina spustanja nizs rampu 60
 		r.forward(-700) #spusti se niz rampu 680 bilo
-		
 		
 		#RESETOVANJE x ---------------------------------------------
 		r.conf_set('enable_stuck', 1) # reset x pozicije
@@ -65,7 +66,7 @@ def run():
 		
 		r.forward(200)# 200 izvuci se za kurvu
 		sleep(7)
-		r.speed(20) #20
+		r.speed(60) #20
 		#r.absrot(0)
 		r.curve_rel(-205, -90) #izlaz iz prilaza
 		
@@ -80,11 +81,8 @@ def run():
 		#----------------------------------------------------------
 		#r.goto(-1275,140,-1)
 		
-	
+		r.speed(120)
 		#TEST KRAJ
 		r.forward(-530)# izvlacenje
-		sleep(7)
 		sleep(2)
-		r.absrot(110)
-		r.forward(-200)
 		return

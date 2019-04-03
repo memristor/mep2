@@ -14,6 +14,8 @@ p.recv = msg
 
 if not hasattr(State, 'ip'):
 	State.ip = '0.0.0.0'
+else:
+	State.ip = '127.0.0.1'
 
 from modules.default_config import share
 share.ip = State.ip

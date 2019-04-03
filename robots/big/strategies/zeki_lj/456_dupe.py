@@ -18,8 +18,8 @@ def run():
 		#lift(1,'pri_vrhu',1) # podize malo da se pak moze izvuci 
 		lift(1,'sredina',1)
 		
-		r.goto(-900,350,1)# pridji 365 inicijalno 360
-		r.goto(-1200,300,1)# pridji 365 inicijalno 360
+		r.goto(-900,370,1)# pridji -900  350
+		r.goto(-1200,280,1)# pridji 365 inicijalno 300
 		return
 		
 		

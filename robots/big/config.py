@@ -137,6 +137,17 @@ def lift(l, pos, up=0, _future=None):
 from modules.default_config import share, timer
 share.port = 6000
 
+_core.debug =1 
+######### addpts ##########
+@_core.init_task
+def _():
+		pts = _State(0, name='points', local=0, shared=1)
+		@_core.export_cmd
+		@_core.do
+		def addpts(points):
+			print('addpts',points)
+			pts.val = pts.val + points
+###########################
 
 @_core.init_task
 def init_task():

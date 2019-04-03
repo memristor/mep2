@@ -8,7 +8,7 @@ def run():
 	r.speed(120)
 	
 	r.goto(-830,330,-1)
-	r.goto(-520,330,-1)
+	r.goto(-530,330,-1)
 	
 	r.absrot(-90)
 	@_spawn
@@ -16,10 +16,10 @@ def run():
 		#nazgold(2)
 		pump(1,1) # (br_pumpe,upaljena)
 	r.speed(30)
-	r.goto(-520,450,-1)
+	r.goto(-530,450,-1)
 
 	r.speed(120)
-	r.goto(-520,330,1)
+	r.goto(-530,330,1)
 	p1=nazadp.picked()
 	@_do
 	def _():

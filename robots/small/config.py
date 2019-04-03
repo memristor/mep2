@@ -12,7 +12,7 @@ import socket
 # from modules.default_config import motion, collision_wait, chinch, lidar, timer, pathfind
 #from modules.default_config import motion, chinch, lidar, timer#, pathfind
 #from modules.default_config import motion, collision_wait_redo, chinch, lidar, timer, pathfind
-from modules.default_config import motion, chinch, lidar, timer, pathfind
+from modules.default_config import motion, chinch, lidar, timer, pathfind,collision_wait
 lidar.tune_angle = -100+180-30+20+20
 # from modules.default_config import motion, chinch, lidar, timer
 
@@ -35,10 +35,10 @@ can = motion.can
 
 ##### Infrared ####
 _core.add_module([
-	BinaryInfrared('prednji desni', (0,-50), (200,-50), packet_stream=can.get_packet_stream(0x80007822)),
-	BinaryInfrared('prednji levi', (0,50), (200,50), packet_stream=can.get_packet_stream(0x80007824)),
-	BinaryInfrared('zadnji desni', (0, -50), (-200, -50), packet_stream=can.get_packet_stream(0x80007823)),
-	BinaryInfrared('zadnji levi', (0, -50), (-200, 50), packet_stream=can.get_packet_stream(0x80007825))
+	BinaryInfrared('prednji desni', (0,-50), (400,-50), packet_stream=can.get_packet_stream(0x80007822)),
+	BinaryInfrared('prednji levi', (0,50), (400,50), packet_stream=can.get_packet_stream(0x80007824)),
+	BinaryInfrared('zadnji desni', (0, -50), (-400, -50), packet_stream=can.get_packet_stream(0x80007823)),
+	BinaryInfrared('zadnji levi', (0, -50), (-400, 50), packet_stream=can.get_packet_stream(0x80007825))
 ])
 ##################
 
@@ -84,10 +84,6 @@ servos = [servo_rucica_desno, servo_rucica_leva, servo_rfliper, servo_lfliper, s
 for i in servos: i.export_cmds(i.name)
 _core.add_module(servos)
 
-servo_id = 0x00008D70
-
-#@_core.asyn2
-#def servo_set_speed(x,y):
 @_core.do
 def rrucica(v):
 	_e.servo_rucica_desno.action('GoalPosition', 283 if v == 1 else 601)
@@ -98,21 +94,21 @@ def lrucica(v):
 
 @_core.do
 def rfliper(v):
-	_e.servo_rfliper.action('GoalPosition', [20,289,424][v])
+	# _e.servo_rfliper.action('GoalPosition', [20,289,424][v])
+	_e.servo_rfliper.action('GoalPosition', [162,370,471][v])
+	
 @_core.do
 def lfliper(v):
-	_e.servo_lfliper.action('GoalPosition', [921,606,504][v])
+	# _e.servo_lfliper.action('GoalPosition', [921,606,504][v])
+	_e.servo_lfliper.action('GoalPosition', [821,615,507][v])
 
 @_core.do
 def nazgold(v):
 	_e.servo_napredgold.action('GoalPosition', [150,330,674][v]) #674 je donji polozaj, 300 je bio najvisi
 
-
 @_core.do
 def napgold(v):
 	_e.servo_nazadgold.action('GoalPosition', [87,450,380][v])
-
-
 ####################################################################3
 c=can
 @_core.export_cmd
@@ -128,7 +124,8 @@ core.export_cmd('lfliper', lfliper)
 core.export_cmd('napgold', napgold)
 core.export_cmd('nazgold', nazgold)
 
-from modules.default_config import share
+_core.debug=0
+from modules.default_config import share,lcd
 share.ip = '192.168.1.144'
 share.port = 6000
 
@@ -138,8 +135,8 @@ def init_task():
 	servo_rucica_desno.action('Speed', 250)
 	servo_rucica_leva.action('Speed', 250)
 	servo_nazadgold.action('Speed', 200)
-	servo_lfliper.action('Speed', 200)
-	servo_rfliper.action('Speed', 200)
+	servo_lfliper.action('Speed', 500)
+	servo_rfliper.action('Speed', 500)
 
 	print('Servo speed set')
 	_e.r.send('R')
@@ -164,6 +161,7 @@ def init_task():
 
 	_e.r.accel(800)
 	_e.r.speed(100)
+	
 	_e.chinch()
 	_e.send_msg('go')
 	timer.start_timer()

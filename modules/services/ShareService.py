@@ -70,7 +70,7 @@ class ShareService:
 			
 	def on_new_entity(self,ent):
 		if ent.type != 'static' and ent.type != 'friendly_robot':
-			if _core.debug >= 1: print('share entity', ent.type)
+			if _core.debug >= 2: print('share entity', ent.type)
 			#  self.ps.send(bytes([SHARE_ENTITY]) + json.dumps(ent.__dict__).encode())
 		
 	def run(self):
