@@ -17,6 +17,7 @@ class Motion:
 		self.debug = 0
 		self.point = [999999,999999]
 		self.tol = 0
+		self.state_rep = 0
 		self.ps = None
 		self.future=None
 		self.direction = 1
@@ -45,6 +46,20 @@ class Motion:
 			# print(_core.look_vector())
 			if self.tol > 0 and point_distance([x,y], self.point) < self.tol:
 				self.resolve(True)
+			
+			prev = _core.state['state']
+			if prev != s:
+				self.state_rep = 0
+			else:
+				self.state_rep += 1
+				
+			if self.state_rep >= 10 and _core.state['state2'] != s:
+				ps = _core.state['state2']
+				_core.state['state2'] = s
+				if ps in 'MR' and prev == 'I':
+					self.resolve(True)
+					print('glitch resolved')
+			
 			_core.set_position(x,y,a)
 			_core.state['state'] = s
 			
@@ -52,14 +67,13 @@ class Motion:
 			status = chr(pkt[1])
 			print(status)
 			prev = _core.state['state2']
-			if _core.state['state2'] == status:
-				return
+			if _core.state['state2'] == status: return
 			_core.state['state2'] = status
+			self.state_rep = 0
 			
 			if status == 'I':
 				_core.emit('motion:idle')
-				if prev != 'S':
-					self.resolve(True)
+				if prev in 'MR': self.resolve(True)
 			elif status == 'S':
 				_core.emit('motion:stuck')
 			elif status == 'E':

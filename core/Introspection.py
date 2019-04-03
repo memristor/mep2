@@ -18,6 +18,9 @@ class Introspection:
 		self.port = Tcp.get_free_port(self.port, 10)
 		self.tcp = Tcp(name='introspection_tcp', port=self.port)
 		self.announcer_port = 5010
+		
+		# listen bcast 5011
+		# req announce at bcast 5010
 		self.udp = Udp(name='udp announcer', local_port=self.announcer_port)
 		p = self.udp.get_packet_stream()
 		p.recv = self.on_req_announcement
@@ -28,6 +31,16 @@ class Introspection:
 		_core.add_module([self.tcp, self.udp])
 		_core.listen('entity:new', self.on_new_entity)
 		asyncio.ensure_future(self.loop())
+		
+	def on_req_announcement(self, pkt, addr):
+		self.announce(addr)
+	
+	def announce(self, addr=None):
+		import random
+		if addr == None:
+			self.udp.broadcast( p16(self.port) + p16(random.randint(0,2**16-1)), self.announcer_port+1)
+		else:
+			self.udp.send( p16(self.port) + p16(random.randint(0,2**16-1)), addr)
 		
 	def send_json(self, jobj):
 		m = bytes([3, ord('J')]) + json.dumps(jobj).encode()
@@ -43,11 +56,7 @@ class Introspection:
 			self.send_entity(ent)
 			
 	def on_new_entity(self, ent):
-		self.send_entity(ent)
-		
-	
-	def on_req_announcement(self, pkt, addr):
-		self.udp.send(p16(self.port), addr)
+		self.send_entity(ent)	
 	
 	def on_recv(self, pkt):
 		if not pkt: return
@@ -84,8 +93,8 @@ class Introspection:
 			
 	async def loop(self):
 		await asyncio.sleep(0.1)
-		import random
-		self.udp.broadcast( p16(self.port) + p16(random.randint(0,2**16-1)), self.announcer_port+1)
+		self.announce()
+		
 		while 1:
 			await asyncio.sleep(0.1)
 			p=_core.get_position()
