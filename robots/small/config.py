@@ -9,10 +9,11 @@ from modules.drivers.Servo import *
 from core.network.Splitter import *
 import socket
 
+
 # from modules.default_config import motion, collision_wait, chinch, lidar, timer, pathfind
 #from modules.default_config import motion, chinch, lidar, timer#, pathfind
 #from modules.default_config import motion, collision_wait_redo, chinch, lidar, timer, pathfind
-from modules.default_config import motion, chinch, lidar, timer, pathfind,collision_wait
+from modules.default_config import motion, chinch, lidar, timer, pathfind, collision_wait
 lidar.tune_angle = -100+180-30+20+20
 # from modules.default_config import motion, chinch, lidar, timer
 
@@ -35,10 +36,10 @@ can = motion.can
 
 ##### Infrared ####
 _core.add_module([
-	BinaryInfrared('prednji desni', (0,-50), (400,-50), packet_stream=can.get_packet_stream(0x80007822)),
-	BinaryInfrared('prednji levi', (0,50), (400,50), packet_stream=can.get_packet_stream(0x80007824)),
-	BinaryInfrared('zadnji desni', (0, -50), (-400, -50), packet_stream=can.get_packet_stream(0x80007823)),
-	BinaryInfrared('zadnji levi', (0, -50), (-400, 50), packet_stream=can.get_packet_stream(0x80007825))
+	BinaryInfrared('prednji desni', (0,-50), (300,-50), packet_stream=can.get_packet_stream(0x80007822)),
+	BinaryInfrared('prednji levi', (0,50), (300,50), packet_stream=can.get_packet_stream(0x80007824)),
+	BinaryInfrared('zadnji desni', (0, -50), (-300, -50), packet_stream=can.get_packet_stream(0x80007823)),
+	BinaryInfrared('zadnji levi', (0, -50), (-300, 50), packet_stream=can.get_packet_stream(0x80007825))
 ])
 ##################
 
@@ -108,7 +109,7 @@ def nazgold(v):
 
 @_core.do
 def napgold(v):
-	_e.servo_nazadgold.action('GoalPosition', [87,450,380][v])
+	_e.servo_nazadgold.action('GoalPosition', [87,450,380,550][v])
 ####################################################################3
 c=can
 @_core.export_cmd
