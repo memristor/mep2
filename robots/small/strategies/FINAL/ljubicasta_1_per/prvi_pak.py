@@ -17,8 +17,8 @@ def run():
 	r.absrot(-90)
 	@_spawn
 	def _():
-		#nazgold(2)
-		pump(1,1) # (br_pumpe,upaljena)
+		nazgold(2)
+	pump(1,1) # (br_pumpe,upaljena)
 
 	@_spawn(_name='test')
 	def _():
@@ -34,7 +34,7 @@ def run():
 		_label('Done')
 	
 	r.speed(30)
-	r.goto(-1020,442,-1)
+	r.goto(-1020,427,-1)
 
 	r.speed(120)
 	r.goto(-1020,250,1)

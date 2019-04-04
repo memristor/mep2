@@ -5,7 +5,7 @@ def run():
 	# 90 je setpos
 
 	#r.curve_rel(-180, -130)
-	r.speed(220)
+	r.speed(200)
 	
 	'''r.goto(-830,330,-1)#1. pak
 	r.goto(-220,330,-1)#pre precke

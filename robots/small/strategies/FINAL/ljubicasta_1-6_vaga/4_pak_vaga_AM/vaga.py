@@ -18,9 +18,12 @@ def run():
 	r.speed(50)
 	r.forward(-100)
 	r.conf_set('enable_stuck', 0)
+	nazgold(2)
+	sleep(0.5)
 	pump(1,0)
 	addpts(12)
 	r.goto(-200,210,1)
+	nazgold(0)
 
 	'''r.goto(-200,350)
 	nazgold(1)

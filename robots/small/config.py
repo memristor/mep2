@@ -13,7 +13,8 @@ import socket
 # from modules.default_config import motion, collision_wait, chinch, lidar, timer, pathfind
 #from modules.default_config import motion, chinch, lidar, timer#, pathfind
 #from modules.default_config import motion, collision_wait_redo, chinch, lidar, timer, pathfind
-from modules.default_config import motion, chinch, lidar, timer, pathfind, collision_wait
+from modules.default_config import motion, chinch, lidar, timer, pathfind
+#from modules.default_config import collision_wait
 lidar.tune_angle = -100+180-30+20+20
 # from modules.default_config import motion, chinch, lidar, timer
 
@@ -130,6 +131,14 @@ from modules.default_config import share,lcd
 share.ip = '192.168.1.144'
 share.port = 6000
 
+tcp_experiment = Tcp(name='experiment', ip='127.0.0.1', port=8000)
+pt = tcp_experiment.get_packet_stream()
+_core.add_module(tcp_experiment)
+@_core.export_cmd
+@_core.do
+def experiment(v):
+	pt.send(v.encode())
+
 ###### ROBOT DEFAULT INITIAL TASK #######
 def init_task():
 	servo_napredgold.action('Speed', 200)
@@ -147,9 +156,9 @@ def init_task():
 	_e.r.conf_set('enable_stuck', 0)
 	print('init task loaded 1')
 	_e._do(lambda: print('init task loaded'))
-	_e.r.conf_set('wheel_r1', 63)	#levi tocak 70.1920648macak i bela menjali
-	_e.r.conf_set('wheel_r2', 63)	#desni tocak 69.04025833 bela i macak menjali
-	_e.r.conf_set('wheel_distance',253.917866401 + 0.1+0.05)	#idalno 275.92 252.917866401 
+	_e.r.conf_set('wheel_r1', 63.041126)	#levi tocak 70.1920648macak i bela menjali
+	_e.r.conf_set('wheel_r2', 63.12501522)	#desni tocak 69.04025833 bela i macak menjali
+	_e.r.conf_set('wheel_distance',255.17)	#idalno 275.92 252.917866401 
 	#bela dodao 0.1
 	_e.sleep(0.01)
 	if not State.sim:
@@ -163,9 +172,11 @@ def init_task():
 	_e.r.accel(800)
 	_e.r.speed(100)
 	
+
 	_e.chinch()
 	_e.send_msg('go')
 	timer.start_timer()
+	_e.experiment('H')
 
 # senzor pritiska
 # \x01 ili \x02 7800 => recv 7801, 7802 ( xx 0c => ne drzi, xx 02 => drzi )
