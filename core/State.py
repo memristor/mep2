@@ -65,7 +65,7 @@ class _State:
 				self.inst = StateBase(value, name)
 				if inst: inst.append(self.inst)
 
-		if _core.debug: print('initing state')
+		if _core.debug >= 3: print('initing state')
 		_core.emit('state:init', self, value, name, **kwargs)
 		
 	@_core.do

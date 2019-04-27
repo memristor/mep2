@@ -1,7 +1,9 @@
 weight=15
 def run():
+		#120 kurva
+		#stuck 70
 		_unlisten('collision')
-		r.speed(120)
+		r.speed(250)
 		r.goto(-1275,500,1) #pridji(udji) u rampu
 		r.absrot(90)
 		
@@ -9,23 +11,21 @@ def run():
 		pump(8,1)
 		pump(9,1)
 		
-		r.speed(50) # brzina za nabijanje u pakove		mozda izbaciti
+		r.speed(70) # brzina za nabijanje u pakove		mozda izbaciti 60
 		def  f():
 			_goto(offset=1, ref='main')
 		r.conf_set('enable_stuck', 1)
 		_on('motion:stuck', f)
 		r.forward(500)
-		r.speed(100)
+		r.speed(150)#100
 		r.conf_set('enable_stuck', 0) # upali stuck
-		r.forward(-340) # izvuci se za kurvu
-		
-		r.speed(80)#60
+		r.forward(-350) # izvuci se za kurvu 340 bilo
+		r.speed(120)#80
 		r.forward(10)
 		r.curve_rel(-205,90)
-		#r.absrot(10)
-		#r.absrot(0)
-		#r.speed(60)
-		sleep(1)
+		
+		r.absrot(0)
+		r.speed(30)#bilo 70
 		#PENJANJE GORE
 		#-1080   810
 		r.goto(-350,810,1)
@@ -40,49 +40,41 @@ def run():
 		def _():
 			lfliper(1)
 		rfliper(1)
-		sleep(2)
-
 		@_spawn
 		def _():
 			lfliper(0)	
 		rfliper(0)
-		#precka stuck mozda upaliti NEMA POTREBE
-		# r.conf_set('enable_stuck', 1)
-		# _on('motion:stuck', f)
-		# r.forward(200)
-		# preska gotova cimni
-		#r.conf_set('enable_stuck', 0)
-		
+
 		#SPUSTANJE DOLE
-		r.speed(80) #brzina spustanja nizs rampu 60
-		r.forward(-700) #spusti se niz rampu 680 bilo
-		
+		r.speed(60) #brzina spustanja nizs rampu 80
+		r.forward(-750) #spusti se niz rampu 700
+		r.speed(50)
 		#RESETOVANJE x ---------------------------------------------
 		r.conf_set('enable_stuck', 1) # reset x pozicije
 		_on('motion:stuck', f)
 		r.forward(-300)
-		r.setpos(x=-1500+225)
+		r.setpos(x=-1500+225,o=0)
 		r.conf_set('enable_stuck', 0)
 		
 		r.forward(200)# 200 izvuci se za kurvu
-		sleep(7)
-		r.speed(60) #20
+		r.speed(100) #60
 		#r.absrot(0)
 		r.curve_rel(-205, -90) #izlaz iz prilaza
 		
 		r.absrot(90)
+		
 		#RESETOVANJE Y
 		r.speed(50)#50
 		r.conf_set('enable_stuck', 1) # reset y pozicije
 		_on('motion:stuck', f)
 		r.forward(500)
-		r.setpos(y=1000-60)
+		r.setpos(y=1000-60,o=90)
 		r.conf_set('enable_stuck', 0)
 		#----------------------------------------------------------
 		#r.goto(-1275,140,-1)
 		
-		r.speed(120)
-		#TEST KRAJ
-		r.forward(-530)# izvlacenje
+		r.speed(180)
+		r.goto(-1200,200,-1) #pridji(udji) u rampu
+		#r.forward(-530)# izvlacenje
 		sleep(2)
 		return

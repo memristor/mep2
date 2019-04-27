@@ -217,7 +217,7 @@ class TaskManager:
 	set_init_task = init_task
 	
 	def expose_task_commands(self, o):
-		o.__dict__.update(self.exports.__dict__)
+		if type(o) is not type: o.__dict__.update(self.exports.__dict__)
 	
 	def add_task_func(self, name, task_func, instance=0):
 		import types

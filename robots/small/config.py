@@ -14,7 +14,8 @@ import socket
 #from modules.default_config import motion, chinch, lidar, timer#, pathfind
 #from modules.default_config import motion, collision_wait_redo, chinch, lidar, timer, pathfind
 from modules.default_config import motion, chinch, lidar, timer, pathfind
-#from modules.default_config import collision_wait
+#from modules.default_config import collision_test
+from modules.default_config import collision_wait #Senzor, zakomentarisati ako ne radi
 lidar.tune_angle = -100+180-30+20+20
 # from modules.default_config import motion, chinch, lidar, timer
 
@@ -37,10 +38,10 @@ can = motion.can
 
 ##### Infrared ####
 _core.add_module([
-	BinaryInfrared('prednji desni', (0,-50), (300,-50), packet_stream=can.get_packet_stream(0x80007822)),
-	BinaryInfrared('prednji levi', (0,50), (300,50), packet_stream=can.get_packet_stream(0x80007824)),
-	BinaryInfrared('zadnji desni', (0, -50), (-300, -50), packet_stream=can.get_packet_stream(0x80007823)),
-	BinaryInfrared('zadnji levi', (0, -50), (-300, 50), packet_stream=can.get_packet_stream(0x80007825))
+	BinaryInfrared('prednji desni', (0,-50), (400,-50), packet_stream=can.get_packet_stream(0x80007822)),
+	BinaryInfrared('prednji levi', (0,50), (400,50), packet_stream=can.get_packet_stream(0x80007824)),
+	BinaryInfrared('zadnji desni', (0, -50), (-400, -50), packet_stream=can.get_packet_stream(0x80007823)),
+	BinaryInfrared('zadnji levi', (0, 50), (-400, 50), packet_stream=can.get_packet_stream(0x80007825))
 ])
 ##################
 
@@ -97,12 +98,12 @@ def lrucica(v):
 @_core.do
 def rfliper(v):
 	# _e.servo_rfliper.action('GoalPosition', [20,289,424][v])
-	_e.servo_rfliper.action('GoalPosition', [162,370,471][v])
+	_e.servo_rfliper.action('GoalPosition', [70,233,471][v])
 	
 @_core.do
 def lfliper(v):
 	# _e.servo_lfliper.action('GoalPosition', [921,606,504][v])
-	_e.servo_lfliper.action('GoalPosition', [821,615,507][v])
+	_e.servo_lfliper.action('GoalPosition', [975,812,560][v])
 
 @_core.do
 def nazgold(v):
@@ -110,7 +111,7 @@ def nazgold(v):
 
 @_core.do
 def napgold(v):
-	_e.servo_nazadgold.action('GoalPosition', [87,450,380,550][v])
+	_e.servo_nazadgold.action('GoalPosition', [87,450,360,550][v])
 ####################################################################3
 c=can
 @_core.export_cmd
@@ -139,6 +140,13 @@ _core.add_module(tcp_experiment)
 def experiment(v):
 	pt.send(v.encode())
 
+
+@_core.listen('round:end')
+def round_end():
+	for i in range(1,10):
+		_e.pump(i,0)
+	_e.motoroff()
+	
 ###### ROBOT DEFAULT INITIAL TASK #######
 def init_task():
 	servo_napredgold.action('Speed', 200)
@@ -147,6 +155,12 @@ def init_task():
 	servo_nazadgold.action('Speed', 200)
 	servo_lfliper.action('Speed', 500)
 	servo_rfliper.action('Speed', 500)
+	
+
+	State.slot1lj = [ (0,0)  ]
+	State.slot2lj = [ (0,0+i*100) for i in range(6) ]
+	State.slot1z = [ (0,0+i*100) for i in range(3) ]
+	State.slot2z = [ (0,0) ]
 
 	print('Servo speed set')
 	_e.r.send('R')

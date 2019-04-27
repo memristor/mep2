@@ -1,23 +1,24 @@
 # hello world code for driving robot
-from modules.default_config import motion,chinch
+from modules.default_config import motion,chinch,lidar
 from modules.drivers.Servo import *
 from modules.sensors.BinaryInfrared import *
 
 from modules.sensors.PressureSensor import *
 from core.network.Splitter import *
-motion.can.iface = 'can0'
+motion.can.iface = 'can0' 
 can=motion.can
 
 #VELIKIII
 
-from modules.default_config import collision_wait
-chinch.addr = 0x8d02
+#from modules.default_config import collision_wait
+chinch.addr = 0x80007f11
 
 ##### Infrared ####
 _core.add_module([
-	BinaryInfrared('zadnji', (-200,120), (-300,-50), packet_stream=can.get_packet_stream(0x80008d05)),
-	BinaryInfrared('prednji levi', (60, 100), (300,50), packet_stream=can.get_packet_stream(0x8008d03)),
-	BinaryInfrared('prednji desni', (60, -100), (300, -50), packet_stream=can.get_packet_stream(0x80008d04)),
+	BinaryInfrared('zadnji levi', (-200,120), (-300,120), packet_stream=can.get_packet_stream(0x80007f22)),
+	BinaryInfrared('zadnji desni', (-200,-120), (-300,-120), packet_stream=can.get_packet_stream(0x80007f21)),
+	BinaryInfrared('prednji levi', (60, 100), (300,100), packet_stream=can.get_packet_stream(0x80007f10)),
+	BinaryInfrared('prednji desni', (60, -100), (300, -100), packet_stream=can.get_packet_stream(0x80007f0f)),
 ])
 ##################
 	
@@ -95,11 +96,18 @@ def lift_recv(p):
 			if _core.debug >= 1: print('lift 1 done')
 spl.get().recv=lift_recv
 
-lift_positions = {
+lift_positions1 = {
+	'accel': 50000+77000+15000,
+	'goldenium': 400000+77000+15000,
+	'pri_vrhu': 1700000+77000+15000,
+	'sredina': 1977000+15000 #1 860 000
+}
+
+lift_positions2 = {
 	'accel': 50000,
 	'goldenium': 400000,
 	'pri_vrhu': 1700000,
-	'sredina': 1800000
+	'sredina': 1800000 #1 860 000
 }
 
 @_core.export_cmd
@@ -119,14 +127,17 @@ def lift(l, pos, up=0, _future=None):
 	if State.sim: _future.set_result(1)
 	l = min(2, max(1, l))
 	if not State.lift_fut[l-1]: 
-		lift_drv.conf_set('encoder'+str(l)+'_max', 1860000)
+		lift_drv.conf_set('encoder'+str(l)+'_max', 2000000)
 	p = State.lift_fut[l-1]
 	if p and not p.done():
 		print('lift unfinished !')
 	State.lift_fut[l-1] = _future
 	pt = 0
-	if pos in lift_positions:
-		pt = lift_positions[pos]
+	lf = lift_positions1
+	if l == 2:
+		lf = lift_positions2
+	if pos in lf:
+		pt = lf[pos]
 	elif type(pos) is int:
 		pt = pos
 	lift_drv.conf_set('setpoint'+str(l), pt - 200000 * up)
@@ -137,7 +148,8 @@ def lift(l, pos, up=0, _future=None):
 from modules.default_config import share, timer
 share.port = 6000
 
-_core.debug =1 
+timer.end_time = 200
+_core.debug = 1
 ######### addpts ##########
 @_core.init_task
 def _():
@@ -149,8 +161,61 @@ def _():
 			pts.val = pts.val + points
 ###########################
 
+
+@_core.export_cmd
+def coord(c):
+	zuta = {
+		'prilaz_rampi': (1265,500),
+		
+		'start_plavi' :	(1250-50,110),
+		'start_zeleni': (1250-50,-390),
+		'start_crveni': (1250-50,-520),
+		
+		'slot_2_1': (795,355),
+		'slot_2_2': (698,355),
+		
+		'priprema_akcelerator_1': (0,-550),
+		'priprema_akcelerator_2_1': (80,-788),
+		'priprema_akcelerator_2_2': (-100,-782),
+	}
+	ljubicasta = {
+		'prilaz_rampi': (-1265,500),
+		
+		'start_plavi': (-1250+50,110),#bilo 1180
+		'start_zeleni': (-1250+50,-390),
+		'start_crveni': (-1250+50,-520),
+		
+		'slot_2_1': (-795,355+15),
+		'slot_2_2': (-698,355+15),
+	
+		'priprema_akcelerator_1': (0,-550),
+		'priprema_akcelerator_2_1': (-80,-788),
+		'priprema_akcelerator_2_2': (100,-782),
+	}
+		
+	if State.color == 'zuta':
+		return zuta[c]
+	else:
+		return ljubicasta[c]
+
+@_core.listen('round:end')
+def round_end():
+	for i in range(1,10):
+		_e.pump(i,0)
+	_e.motoroff()
+	
 @_core.init_task
 def init_task():
+	
+	State.color_vaga_bodovi = {'crveni': 4, 'plavi': 12, 'zeleni': 8, False: 0}
+	State.color_elem_bodovi = {'crveni': 6, 'plavi': 6, 'zeleni': 6, False: 0}
+	State.pumpe = [_State(0) for i in range(10)]
+	State.akcelerator_bodovi = 10
+	
+	State.startno_polje_bodovi = 1
+	State.startno_polje_bonus = 5
+	
+	
 	servo_rlift.action('Speed',500)
 	servo_llift.action('Speed', 500)
 	servo_lfliper.action('Speed', 350)
@@ -162,6 +227,10 @@ def init_task():
 	_e.r.send('R')
 	_e.r.conf_set('send_status_interval', 100)
 	if not State.sim:
+		_e.r.conf_set('stuck_distance_max_fail_count',50)
+		_e.r.conf_set('stuck_rotation_max_fail_count',50)
+		_e.r.conf_set('stuck_rotation_jump',20)
+		_e.r.conf_set('stuck_distance_jump',50)
 		_e.r.conf_set('wheel_r1', 72.768)
 		_e.r.conf_set('wheel_r2', 72.11807159)
 		_e.r.conf_set('wheel_distance', 276.621)

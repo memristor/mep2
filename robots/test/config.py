@@ -18,7 +18,12 @@ else:
 	State.ip = '127.0.0.1'
 
 from modules.default_config import share
+
 share.ip = State.ip
+
+
+from modules.default_config import timer
+timer.end_time = 10
 
 @_core.export_cmd
 @_core.do
@@ -33,10 +38,13 @@ State.init=_State()
 def msg(m):
 	print(m)
 
-
+@_core.listen('round:end')
+def _():
+	_e._print('round end is run as task')
 	
 
 @_core.init_task
 def init_task():
 	State.init.val = 'initialized'
 	_e._print('init config.py')
+	timer.start()

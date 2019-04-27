@@ -11,13 +11,13 @@ if not State.sim:
 
 	lcd.show_pts(0)
 
-	@_core.init_task
-	def tinit():
-		print('tinit')
-		pts=_State(0, name='points', shared=True, local=False)
-	
-		@_core.do
-		def addpts(points):
-			print('addpts', points)
-			pts.val = pts.val + points
-		_core.export_cmd('addpts', addpts)
+@_core.init_task
+def tinit():
+	print('tinit')
+	pts=_State(0, name='points', shared=True, local=False)
+
+	@_core.do
+	def addpts(points):
+		print('addpts', points)
+		pts.val = pts.val + points
+	_core.export_cmd('addpts', addpts)

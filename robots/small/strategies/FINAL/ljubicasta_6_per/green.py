@@ -11,5 +11,6 @@ def run():
 	r.goto(-1000,-250,1)
 	r.turn(15)
 	pump(1,0)
+	addpts(6)
 	#344
 	# x za haos 397

@@ -9,10 +9,25 @@ def run():
 		@_do
 		def _():
 			print('holding ',  [b.val for b in a])
-#pump(0, 1)
-	for j in range(1000):
-		sleep(0.1)
-		f()
-		
-#pump(0, 0)
+	
+	@_core.do
+	def t(i):
+		p=pressure(i)
 
+		@_do
+		def _():
+			print('pumpa', i, p.val)
+	with _parallel():
+		lift(1, 'sredina')
+		lift(2, 'sredina')
+		llift(1)
+		rlift(1)
+	_sync()
+	for i in (8,9,7,3,2,1,4,6,5):
+		_print('pumpa ', i)
+		pump(i,1)
+		for j in range(15):
+			sleep(0.1)
+			t(i)
+		pump(i,0)
+		

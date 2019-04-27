@@ -36,6 +36,8 @@ class Servo:
 		self.name = name
 		self.servo_id = servo_id
 		self.ps = packet_stream
+		self.prev_val = 0
+		self.servo_tries = 0
 		self.future = None
 	def set_packet_stream(self,ps):
 		self.ps = ps
@@ -115,6 +117,16 @@ class Servo:
 			# print(self.servo_id, 'unpaking: ' , data, self.val)
 			r = struct.unpack('h', data[3:])[0]
 			# print('servo',data, r)
+			if abs(r - self.prev_val) < 50:
+				self.servo_tries += 1
+			else:
+				self.servo_tries = 0
+				
+				
+			if self.servo_tries > 10:
+				self.future.set_result(0)
+			self.prev_val = r
+			
 			if abs(r - self.val) < 50:
 				if self.future: self.future.set_result(1)
 				self.val = None

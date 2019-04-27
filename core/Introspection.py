@@ -77,6 +77,13 @@ class Introspection:
 			for ent in _core.entities.get_entities(j['type']):
 				jobj = {'response': 'entity', 'entity': ent.__dict__}
 				self.send_json(jobj)
+		elif j['request'] == 'infrared':
+			mods = _core.get_modules()
+			sensors=[]
+			for i in mods:
+				if type(i).__name__ == 'BinaryInfrared':
+					sensors.append( {'position': i.sensor_position, 'vector': i.sensor_vector} )
+			self.send_json({'response': j['request'], 'sensors':sensors})
 		elif j['request'] == 'sensor':
 			data = _core.sensors.get_sensor_data(j['type'], j['length'])
 			d = [i.abs2 for i in data]

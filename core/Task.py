@@ -347,7 +347,8 @@ class Task:
 				CMD_PICK_BEST: self.cmd_pick_best,
 				CMD_WAKE: self.cmd_wake,
 				CMD_REDO: self.cmd_redo,
-				CMD_RESET_LABEL: self.cmd_reset_label
+				CMD_RESET_LABEL: self.cmd_reset_label,
+				CMD_REPEAT: self.cmd_repeat
 				}
 		# print(cmd)
 		self.meta_commands[cmd.name[-1]](cmd, r)
@@ -628,7 +629,7 @@ class Task:
 					def on_done():
 						cmd.wake_counter-=1
 						if _core.debug >= 2:
-							print('dec', cmd.wake_counter, r.cmd.threads)
+							print('sync dec', cmd.wake_counter, r.cmd.threads)
 						if cmd.wake_counter <= 0: rn.wake(r2)
 					r2.on_done.append(on_done)
 			
@@ -666,11 +667,17 @@ class Task:
 		
 		return cmd.future
 	
+	# listener changing policy
+	def cmd_repeat(s, cmd, r):
+		r.cmd.record.repeat = cmd.args[0]
+		r.inc_ip()
+	
 	def on_listener_event(s, record, *args, **kwargs):
 		# print('listening: ', record, *args)
 		parent = record.cmd.parent
 		if hasattr(parent, 'paused') and parent.paused:
-			print('paused')
+			if _core.debug >= 1.5:
+				print('on listener event: paused')
 			return
 		if s.is_sim: return
 		tr = record.type_record
@@ -692,12 +699,16 @@ class Task:
 			res = False; fut=None
 			if threads and record.repeat != 'block':
 				fut=s.spawn(el.callback, *args, cmd=None, r=None, **kwargs, _name='listener:'+record.name)
+				
 				if record.repeat == 'replace':
 					for rn in threads: rn.kill()
 				if fut.thread: threads.append(fut.thread)
+				fut.cmd.record = record
 			elif not threads:
 				fut=s.spawn(el.callback, *args, cmd=None, r=None, **kwargs, _name='listener:'+record.name)
 				if fut.thread: threads.append(fut.thread)
+				# print('saving record')
+				fut.cmd.record = record
 			if fut: res=fut.cmd.ret
 			if el.once:
 				record.children.remove(el)
@@ -719,6 +730,8 @@ class Task:
 		r.inc_ip()
 		if s.is_sim: return
 		event_name, callback = cmd.args[0], cmd.args[1] if len(cmd.args) == 2 else None
+		
+		# listen / unlisten
 		# if given only 1 argument, 2nd is None
 		if callback == None and type(event_name) is str:
 			if event_name in s.evt_type:
@@ -797,6 +810,9 @@ class Task:
 		dest=pick('destroy', cmd.kwargs, delete=False)
 		if cmd.args:
 			reference = cmd.args[0]
+			
+			if reference not in s.evt_type: return
+				
 			if type(reference) is str:
 				if dest:
 					s.destroy_event(evt_type=reference)

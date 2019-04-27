@@ -14,12 +14,13 @@ class ShareService:
 		self.name = name
 		self.states = {}
 		self._shared = []
+		self.block = False
 		self.set_packet_stream(packet_stream)
 		_core.listen('state:change', self.on_state_change)
 		_core.listen('state:init', self.on_state_init)
 	
 	def on_state_init(self, st, value=None, name=None, ishared=True, **kwargs):
-		if _core.debug >= 1:
+		if _core.debug >= 1.1:
 			print('init state', name, kwargs)
 		if 'shared' in kwargs and kwargs['shared']:
 			st.shared = True
@@ -27,10 +28,12 @@ class ShareService:
 		
 	def update_state(self, name, new):
 		n = next((i for i in self._shared if i.name == name), None)
-		if n: n._set(new,report=1)
-	
+		self.block = 1
+		if n: n._set(new)
+		self.block = 0
 	def on_state_change(self, st, old, new):
-		if _core.debug >= 1: print('st ch:', old, new)
+		if _core.debug >= 1.1: print('st ch:', old, new)
+		if self.block: return
 		if hasattr(st, 'shared') and st.shared:
 			_core.get_module('share').set_state(st.name, new)
 				
@@ -50,8 +53,8 @@ class ShareService:
 		elif pkt[0] == SHARE_STATE:
 			p=json.loads(pkt[1:])
 			self.states[ p[0] ] = p[1]
-			_core.emit('share:state_change', p[0], p[1])
 			self.update_state(p[0], p[1])
+			_core.emit('share:state_change', p[0], p[1])
 			print('rcv state', p)
 			
 	def set_packet_stream(self, ps):
@@ -65,7 +68,7 @@ class ShareService:
 		while True:
 			await asyncio.sleep(0.5)
 			ent = Entity('friendly_robot', _core.robot, _core.get_position(),
-				polygon_square_around_point(_core.get_position()[:2], 300), 0.2)
+				polygon_square_around_point(_core.get_position()[:2], 150), 0.2)
 			self.ps.send(bytes([SHARE_ENTITY]) + json.dumps(ent.__dict__).encode())
 			
 	def on_new_entity(self,ent):

@@ -11,4 +11,5 @@ def run():
 	r.goto(-1000,50,1)
 	r.turn(15)
 	pump(1,0)
+	addpts(6)
 	

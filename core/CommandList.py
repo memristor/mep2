@@ -81,6 +81,7 @@ CMD_PICK_BEST = '_pick_best'
 CMD_WAKE = '_wake'
 CMD_REDO = '_redo'
 CMD_PARALLEL = '_parallel'
+CMD_REPEAT = '_repeat'
 CMD_RESET_LABEL = '_reset_label'
 class Command(CommandList):
 	def __init__(s, name='', params={}, command_list=None):
@@ -248,7 +249,7 @@ meta_funcs = {
 }
 
 cmds=[CMD_RETURN, CMD_TASK_SUSPEND, CMD_TASK_DONE, CMD_GOTO, CMD_RESET_LABEL,
-CMD_WAKE, CMD_UNLISTEN, CMD_EMIT, CMD_REF, CMD_THIS, CMD_WAKE, CMD_SYNC, CMD_REDO]
+CMD_WAKE, CMD_UNLISTEN, CMD_EMIT, CMD_REF, CMD_THIS, CMD_WAKE, CMD_SYNC, CMD_REDO, CMD_REPEAT]
 for i in cmds: meta_funcs[i] = wrap_gen(i)
 cmds_func=[(CMD_DO, 0), (CMD_SPAWN,0), (CMD_LISTEN, 1), (CMD_ON, 1)]
 for i,idx in cmds_func: meta_funcs[i] = wrap_gen_func(i,idx)

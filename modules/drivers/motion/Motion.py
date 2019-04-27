@@ -43,6 +43,8 @@ class Motion:
 			if len(pkt) != 8: return
 			s,x,y,a = chr(pkt[1]), l16(pkt, 2), l16(pkt, 4), l16(pkt, 6)
 			self.tol = 0
+
+#print('status',s,x,y,a)
 			# print(_core.look_vector())
 			if self.tol > 0 and point_distance([x,y], self.point) < self.tol:
 				self.resolve(True)
@@ -53,7 +55,7 @@ class Motion:
 			else:
 				self.state_rep += 1
 				
-			if self.state_rep >= 10 and _core.state['state2'] != s:
+			if self.state_rep >= 50 and _core.state['state2'] != s:
 				ps = _core.state['state2']
 				_core.state['state2'] = s
 				if s == 'S':

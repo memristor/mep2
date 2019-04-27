@@ -74,7 +74,7 @@ class CollisionDetector:
 		polygons = _core.entities.get_entities('static')
 		for poly in polygons:
 			if is_intersecting_poly(p1, p2, poly.polygon):
-				print('inters poly', p1,p2, poly.aabb)
+				print('inters poly', p1, p2, poly.aabb)
 				return False
 		return True
 	

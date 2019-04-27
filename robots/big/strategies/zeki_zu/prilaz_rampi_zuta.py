@@ -3,7 +3,7 @@ def run():
 		# r.goto(1500-155-125+200,1000-600-220+200,1)
 		# sleep(50)
 		r.speed(120)
-		r.goto(1290,500,1) #pridji(udji) u rampu
+		r.goto(1275,500,1) #pridji(udji) u rampu
 		r.absrot(90)
 		
 		pump(7,1)
@@ -86,4 +86,5 @@ def run():
 		#TEST KRAJ
 		r.forward(-530)# izvlacenje
 		r.forward(-200)
+	
 		return

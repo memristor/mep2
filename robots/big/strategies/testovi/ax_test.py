@@ -1,30 +1,19 @@
 weight=15
 def run():
-		# LEVI 
-		# _print('levi 0')
-		# llift(0)
-		# _print('levi 1')
-		# sleep(2)
-		# llift(1)
-		# _print('levi 2')
-		# sleep(2)
-		# llift(2)
-		# _print('nazad u 0')
-		# sleep(2)
-		# llift(0)
+
 		
 		#DESNI
-		# _print('desni 0')
-		# rlift(0)
-		# _print('desni 1')
-		# sleep(2)
-		# rlift(1)
-		# _print('desni 2')
-		# sleep(2)
-		# rlift(2)
-		# _print('nazad u 0')
-		# sleep(2)
-		# rlift(0)
+		_print('desni 0')
+		rlift(0)
+		_print('desni 1')
+		sleep(2)
+		rlift(1)
+		_print('desni 2')
+		sleep(2)
+		rlift(2)
+		_print('nazad u 0')
+		sleep(2)
+		rlift(0)
 		
 		#fliperi
 		

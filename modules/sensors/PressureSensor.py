@@ -22,6 +22,8 @@ class PressureSensor:
 	@_core.module_cmd
 	def picked(self):
 		self.ps.send(bytes([self.id]))
+		if State.sim:
+			self.future.set_result(1)
 
 	def set_packet_stream(self, ps):
 		ps.recv = self.on_recv

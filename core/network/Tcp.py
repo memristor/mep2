@@ -46,7 +46,10 @@ class Tcp(asyncio.Protocol):
 				try:
 					_,_ = await _core.loop.create_connection(lambda: self, self.ip, self.port)
 				except:
-					print('failed to connect to server')
+					_core.loop.call_later(0.5, self.run)
+					if _core.debug >= 0.05:
+						print(self.name+':', 'failed to connect to server')
+					return
 				print('client connected')
 				if self.future: self.future.set_result(1)
 			future = connect()
@@ -73,6 +76,10 @@ class Tcp(asyncio.Protocol):
 		
 	def connection_lost(self, exc):
 		self.transport = None
+		print('conn lost', self.name)
+		if self.mode == 'client':
+			print('reconnecting', self.name)
+			self.run()
 	
 	def close(self):
 		if self.transport: self.transport.close()

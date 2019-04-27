@@ -12,7 +12,7 @@ def run():
 	r.goto(450, -600)
 	r.absrot(-90)
 
-	r.speed(50)	
+	r.speed(60)	
 		
 	def f():
 		_goto(offset=1, ref='main')
@@ -35,6 +35,10 @@ def run():
 	rrucica(0)
 	#####
 	# Nakon sto gurne pak 
+	#Poeni za guranje plavog u akcelerator i otklj goldeniuma
+	addpts(10)
+	addpts(10)
+
 	r.forward(-50)
 	r.turn(10)
 	
@@ -51,6 +55,25 @@ def run():
 	
 	r.forward(-100)
 	sleep(0.3)
+
+	#Kupi goldenium
+
+	p3 = napredp.picked()		
+
+	@_do						# Mora u _do da se proverava
+	def _():
+		if(p3.val):
+			State.a.val = True
+			addpts(20) #Uzimanje goldeniuma
+			print("Uhvatio ------------------------------")
+		else:
+			print("Nije uhvatio -------------------------")
+			pump(2, 0)
+			nazgold(0)	# Nije uhvatio, zavrsi
+			#r.goto(-735,300,1)
+			_task_done()
+			return
+	
 	#nosi ga na vagu
 	napgold(0)
 	r.goto(-200,250-20,1)
@@ -62,11 +85,31 @@ def run():
 	r.speed(50)
 	r.absrot(90)
 	r.forward(100)
+	
 	r.conf_set('enable_stuck', 0)
 	r.speed(180)
 	napgold(1)
+
+
+	# Provera da li je isporucen goldenium da bi sabrao bodove
+	p4 = napredp.picked()		# Uhvatio ??????
+
+	@_do						
+	def _():
+		if(p4.val):
+			addpts(24) #crveni nosi 4 boda na vagi
+			print("Dodao bodove ------------------------------")
+		else:
+			print("Nije uhvatio -------------------------")
+
+	State.a.val = False
+	
 	pump(2,0)
 	sleep(1)
 	r.forward(-100)
 	r.forward(-1000)
 	r.goto(*State.startpos)
+
+
+
+

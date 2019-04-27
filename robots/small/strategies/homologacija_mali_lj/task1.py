@@ -21,7 +21,7 @@ def run():
 	#r.goto(-716,-90)
 	r.goto(-1156, -482)
 	
-	r.forward(-300)
+	r.goto(-400,0,-1)
 	@_spawn
 	def _():
 		lfliper(0)

@@ -18,9 +18,9 @@ def exec_config():
 			if msg == 'danger':
 				print(col.yellow, 'got collision', col.white)
 				_e._sync(0, ref='main') # stop task main thread
-				_e._print('main stopped')
-#	_e.r.stop() # stop robot
-				_e.r.softstop() # stop robot
+				# _e._print('main stopped')
+				_e.r.stop() # stop robot
+				# _e.r.softstop() # stop robot
 			elif msg=='safe':
 				print(col.yellow, 'its safe', col.white)
 				_e._wake('main') # we may continue main thread

@@ -1,5 +1,6 @@
 weight= 4
 # kupi prvi pak 
+State.a = _State(False)
 def run():
 	
 	# 90 je setpos
@@ -20,27 +21,31 @@ def run():
 		nazgold(2)
 	pump(1,1) # (br_pumpe,upaljena)
 
-	@_spawn(_name='test')
-	def _():
-		_label('a')
-		p1=nazadp.picked()
-		sleep(0.1)
-		@_do
-		def _():
-			if p1.val:
-				print('Uhvatio')# skontao da je uhvatio!!!!
-				_goto('Done', ref='test')
-		_goto('a')
-		_label('Done')
 	
 	r.speed(30)
 	r.goto(-1020,427,-1)
 
 	r.speed(120)
 	r.goto(-1020,250,1)
-	p1=nazadp.picked()
+	
+	p1 = nazadp.picked()		# Uhvatio ??????
+
+	@_do						# Mora u _do da se proverava
+	def _():
+		if(p1.val):
+			State.a.val = True
+			print("Uhvatio ------------------------------")
+		else:
+			print("Nije uhvatio -------------------------")
+			pump(1, 0)
+			nazgold(0)	# Nije uhvatio, zavrsi
+			r.goto(-735,300,1)
+			_task_done()
+			return
+			
+	'''
 	@_do
 	def _():
 		if p1.val:
 			State.pokupio = 1
-	print('vrednost ', State.pokupio)
+	print('vrednost ', State.pokupio)'''

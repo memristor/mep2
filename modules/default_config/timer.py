@@ -10,7 +10,10 @@ async def timer_task():
 			print('no more tasks')
 	print('round has ended')
 	_core.fullstop()
+	
 
 @_core.do
 def start_timer():
 	asyncio.ensure_future(timer_task())
+
+start = start_timer

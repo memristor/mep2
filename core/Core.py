@@ -1,5 +1,5 @@
 import asyncio
-from .Util import Transform, rot_vec_deg, mul_pt, col, pick, point_distance, sub_pt
+from .Util import *
 import functools
 class Core():
 	debug=0
@@ -130,13 +130,28 @@ class Core():
 	def load_strategy(self, strategy_name):
 		self.task_manager.load_tasks(self.robot, strategy_name)
 	
+	def is_dangerous(self, p1, p2):
+		polygons = self.entities.get_entities('static')
+		for poly in polygons:
+			if is_intersecting_poly(p1, p2, poly.polygon):
+				# print('inters poly', p1, p2, poly.aabb)
+				return False
+		return True
+		
 	def fullstop(self):
 		for module in self.modules:
 			if hasattr(module, 'fullstop'):
 				module.fullstop()
 		self.task_manager.fullstop()
-		self.emit('round:end')
-		self.quit = True
+		def on_round_end():
+			self.emit('round:end')
+			_e._do(self.task_manager.fullstop)
+		taskname = '!round_end!'
+		self.task_manager.add_task_func(taskname,  on_round_end)
+		self.task_manager.set_task(taskname)
+		
+		# self.emit('kill')
+		# self.quit = True
 		
 	def expose_task_commands(self):
 		import inspect

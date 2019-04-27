@@ -7,7 +7,9 @@ class InfraProcessor:
 	def on_new_pt(self, pt):
 		if pt.type != 'infrared': return
 		# print('infra processor', pt.type, pt.name, pt.rel1, pt.rel2)
-
+		
+		if not _core.is_dangerous(pt.abs1, pt.abs2):
+			return
 		# ents = _core.entities.get_entities()
 		poly = polygon_square_around_point(pt.abs2, 200)
 		# for ent in ents:

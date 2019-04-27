@@ -55,5 +55,5 @@ def run():
 	#izvuci se da ne smetas ananasu
 	r.goto(-400,-200)
 	
-	
+	addpts(14) # 2 crvena su na svojim mestima (2x6) i plavi i zeleni (2x1) 
 	#na kraju zatvori flipere
