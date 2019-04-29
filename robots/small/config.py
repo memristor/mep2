@@ -145,7 +145,7 @@ def experiment(v):
 def round_end():
 	for i in range(1,10):
 		_e.pump(i,0)
-	_e.motoroff()
+	_e.r.motoroff()
 	
 ###### ROBOT DEFAULT INITIAL TASK #######
 def init_task():

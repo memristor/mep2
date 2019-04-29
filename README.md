@@ -29,6 +29,10 @@
 
 [folder]: https://i.imgur.com/ntYUoBK.png "folder"
 
+## Requirements
+- sudo apt-get install python3
+- sudo apt-get install libboost-all-dev
+- sudo pip install python-config
 
 ### ![][folder] core
 Contains minimal code for running platform, by itself doesn't contain any robot configuration or behavior.
