@@ -11,13 +11,13 @@ class LidarProcessor:
 			return
 		
 		ents = _core.entities.get_entities()
-		poly = polygon_square_around_point(pt.abs2, 300)
+		poly = polygon_square_around_point(pt.abs2, 330)
 		for ent in ents:
-			if point_distance( ent.point, pt.abs2 ) < 400:
+			if point_distance( ent.point, pt.abs2 ) < 200:
 				if ent.type == 'robot' or ent.type == 'friendly_robot':
 					ent.refresh(poly)
-				return
-		_core.entities.add_entity('robot', 'robot', poly, point=pt.abs2, duration=State.conf.lidar_duration) 
+					return
+		_core.entities.add_entity('robot', 'robot', poly, point=pt.abs2, duration=State.conf.lidar_duration, source='lidar') 
 		
 	def run(self):
 		_core.listen('sensor:new_pt', self.on_new_pt)

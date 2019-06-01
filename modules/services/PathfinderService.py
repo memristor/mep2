@@ -4,14 +4,14 @@ class PathfinderService:
 	def __init__(self, export=False):
 		self.name = 'pathfinder'
 		self.pathfinder = pathfinder.Pathfinder()
-		self.inflation = 50
+		self.inflation = 10
 		self.d=[]
 		if export: self.export_cmds()
 		
 	def run(self):
 		# terrain restriction polygons
 		s = max(_core.robot_size)/2
-		obsize = 50
+		obsize = 35
 		playing_area_constaint = [ [-1500-obsize, -1000, obsize, 2000+obsize], [-1500, 1000, 3000+obsize, obsize], 
 									[1500, -1000, obsize, 2000+100], [-1500, -1000-obsize, 3000+obsize, obsize] ]
 		for rect in playing_area_constaint:
@@ -28,17 +28,17 @@ class PathfinderService:
 		_core.export_cmd('testpath', self.pathfind)
 		_core.export_cmd('pathfind', self.cmd_pathfind)
 	
-	@_core.do(_atomic=1)
+	# @_core.do(_atomic=1)
 	def cmd_pathfind(self, x,y,o=1):
-		t=_e._ref()
-		def on_entity(ent):
-			pos=_core.get_position()[:2]
-			if is_intersecting_poly([x,y], pos, ent.polygon):
-				_e.r.softstop(_future=None)
-				_e.sleep(1)
-				print('redoing path', [x,y], pos, ent.polygon)
-				if point_distance(pos, ent.point) < 300:
-					_e._redo(ref=t)
+		# t=_e._ref()
+		# def on_entity(ent):
+			# pos=_core.get_position()[:2]
+			# if is_intersecting_poly([x,y], pos, ent.polygon):
+				# _e.r.softstop(_future=None)
+				# _e.sleep(1)
+				# print('redoing path', [x,y], pos, ent.polygon)
+				# if point_distance(pos, ent.point) < 300:
+					# _e._redo(ref=t)
 				
 		#_e._listen('entity:new', on_entity)
 		#_e._listen('entity:refresh', on_entity)
@@ -53,7 +53,7 @@ class PathfinderService:
 			# _e.sleep(2)
 			# _e._goto('redo')
 			# _e._redo()
-			_e._task_suspend()
+			# _e._task_suspend()
 			return False
 		else:
 			print('found path: ', path)
@@ -67,6 +67,7 @@ class PathfinderService:
 		if hasattr(ent, 'poly_id'):
 			# print('pathfinding removing ', ent.name, ent.poly_id)
 			self.pathfinder.RemovePolygon(ent.poly_id)
+			print('pathfinding service removing polygon', ent.name, ent.poly_id)
 			del ent.poly_id
 	
 	def on_refresh_entity(self, ent):
@@ -84,7 +85,7 @@ class PathfinderService:
 				added=True
 				int_polygon = [(int(pt[0]),int(pt[1])) for pt in ent.polygon]
 				# print('appnd poly:', ent.name, int_polygon)
-				ent.poly_id = self.pathfinder.AddPolygon(int_polygon, max(_core.robot_size)/2 + self.inflation)
+				ent.poly_id = self.pathfinder.AddPolygon(int_polygon, max(_core.robot_size)/2 + (self.inflation*0.4 if ent.type == 'static' else self.inflation))
 				ent.pf_poly = self.pathfinder.GetPolygon(ent.poly_id)
 		if added:
 			_core.introspection.send_entities()
@@ -119,12 +120,11 @@ class PathfinderService:
 	
 
 	def pathfind(self, point):
-		static_ents = _core.entities.get_entities('static')
-		dyn_ents = _core.entities.get_entities('robot')
-		
-		self.process_ents(static_ents)
-		self.process_ents(dyn_ents)
+		ents = _core.entities.get_entities(['static', 'pathfind', 'robot'])
+		self.process_ents(ents)
 		path = self.pathfinder.Search(tuple(_core.get_position()[:2]), tuple(point))
+		if path:
+			path = path[1:]
 		print('pf:', path)
 		# if path: self.log(path)
 		return path

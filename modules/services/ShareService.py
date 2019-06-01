@@ -20,22 +20,28 @@ class ShareService:
 		_core.listen('state:init', self.on_state_init)
 	
 	def on_state_init(self, st, value=None, name=None, ishared=True, **kwargs):
-		if _core.debug >= 1.1:
-			print('init state', name, kwargs)
+		# if _core.debug >= 1.1:
+		# print('init state', name, kwargs)
 		if 'shared' in kwargs and kwargs['shared']:
 			st.shared = True
 			self._shared.append(st)
 		
 	def update_state(self, name, new):
 		n = next((i for i in self._shared if i.name == name), None)
-		self.block = 1
-		if n: n._set(new)
-		self.block = 0
+		if n:
+			print('upd state')
+			self.block = 1
+			n._set(new)
+			self.block = 0
+		
 	def on_state_change(self, st, old, new):
-		if _core.debug >= 1.1: print('st ch:', old, new)
+		if State.is_sim():
+			return
+#print('st ch:', old, new)
 		if self.block: return
 		if hasattr(st, 'shared') and st.shared:
-			_core.get_module('share').set_state(st.name, new)
+			print('is shared')
+			self.set_state(st.name, new)
 				
 	def on_recv(self, pkt):
 		if not pkt: return
@@ -48,14 +54,15 @@ class ShareService:
 			return
 			ent = json.loads(pkt[1:])
 			#  print('rcv entity', ent['type'])
-			_core.entities.add_entity(ent['type'], ent['name'], ent['polygon'], ent['point'], ent['duration'])
-			
+			_core.entities.add_entity(ent['type'], ent['name'], 
+				ent['polygon'], ent['point'], ent['duration'])
+		
 		elif pkt[0] == SHARE_STATE:
 			p=json.loads(pkt[1:])
 			self.states[ p[0] ] = p[1]
 			self.update_state(p[0], p[1])
 			_core.emit('share:state_change', p[0], p[1])
-			print('rcv state', p)
+			# print('rcv state', p)
 			
 	def set_packet_stream(self, ps):
 		if ps:
@@ -91,8 +98,7 @@ class ShareService:
 		
 	@_core.do
 	def send_msg(self, msg):
-		if _core.debug >= 1:
-			print('sending:', msg)
+		if _core.debug >= 1: print('sending:', msg)
 		self.ps.send(bytes([SHARE_MESSAGE]) + msg.encode())
 		
 	def export_cmds(self, namespace=''):

@@ -5,6 +5,9 @@
 // #include <debug/Debug.hpp>
 #include <tuple>
 
+#include "clipper.hpp"
+namespace clip = ClipperLib;
+
 namespace my {
 
 Point::Point(){}
@@ -522,15 +525,36 @@ Point Polygon::GetClosestExitPoint(Point pt) {
 		// get closest edge
 		LineSegment ls(p1,p2);
 		Point p3 = ls.GetClosestPoint(pt);
-		if(!ls.IsBetween(p3)) {
-			continue;
-		}
-		Vec2F norm = (p3 - pt).Normalized();
-		p3.MoveInDirection(norm.x, norm.y, 5);
-		float len = vec_length(p3 - pt);
+		Vec2F norm;
+		float len;
+		Point p;
+		
+		p = p1;
+		norm = (p - pt).Normalized();
+		p.MoveInDirection(norm.x, norm.y, 4);
+		len = vec_length(p - pt);
 		if (len < min_len) {
-			min_pt = p3;
+			min_pt = p;
 			min_len = len;
+		}
+		
+		p = p2;
+		norm = (p - pt).Normalized();
+		p.MoveInDirection(norm.x, norm.y, 4);
+		len = vec_length(p - pt);
+		if (len < min_len) {
+			min_pt = p;
+			min_len = len;
+		}
+		
+		if(ls.IsBetween(p3)) {
+			norm = (p3 - pt).Normalized();
+			p3.MoveInDirection(norm.x, norm.y, 4);
+			len = vec_length(p3 - pt);
+			if (len < min_len) {
+				min_pt = p3;
+				min_len = len;
+			}
 		}
 	}
 	return min_pt;
@@ -717,6 +741,35 @@ void Polygon::ExtendPolygon(int size) {
 		it++;
 	}
 	*/
+}
+
+
+Polygon Polygon::JoinPolygons(std::vector<Polygon*> polys) {
+	clip::Clipper c;
+	
+	if(polys.size() == 1) {
+		return *polys[0];
+	}
+	bool first = true;
+	for(auto &poly : polys) {
+		clip::Path path;
+		for(auto& n:poly->GetNodes()) {
+			path << clip::IntPoint( n->point.x, n->point.y );
+		}
+		// auto n = poly->GetNodes()[0];
+		// path << clip::IntPoint( n->point.x, n->point.y );
+		c.AddPath(path, first ? clip::PolyType::ptSubject : clip::PolyType::ptClip, true);
+		first=false;
+	}
+	clip::Paths solutions;
+	// std::cout << "joining polygons" << "\n";
+	c.Execute(clip::ClipType::ctUnion, solutions, clip::PolyFillType::pftNonZero);
+	std::vector<Point> pts;
+	
+	for(auto &p : solutions[0]) {
+		pts.emplace_back(p.X, p.Y);
+	}
+	return Polygon(pts);
 }
 
 #ifdef USE_FSA

@@ -1,7 +1,8 @@
 from contextlib import contextmanager
 from .Debug import *
-
+from core.Constants import *
 class CommandList:
+	
 	def __init__(self, commands=None):
 		self.commands=[]
 		self.labels=[]
@@ -19,6 +20,7 @@ class CommandList:
 		self.labels += [(l[0] + len(self.commands) if type(l[0]) is int else l[0], 
 						l[1] + len(self.commands), l[2]) for l in o.labels]
 		self.commands += o.commands
+		return self
 		
 	def add_label(self, label_name):
 		self.labels.append( (label_name, len(self.commands), None) )
@@ -33,6 +35,19 @@ class CommandList:
 		self.commands.clear()
 		self.labels.clear()
 		
+	def cut(self, start, end=None):
+		if start < 0:
+			start = len(self.commands) + start
+		if end == None:
+			end = len(self.commands)
+		elif end < 0:
+			end = len(self.commands) + end
+		clist = CommandList(self.commands[start:end])
+		clist.labels += [(l[0] + len(self.commands) if type(l[0]) is int else l[0], 
+						l[1] + len(self.commands), l[2]) for l in self.labels if l[1] >= start and l[1] <= end]
+		# print('cuttin at', start, end, ':',len(self.commands), clist.commands, 'labels:',clist.labels)
+		return clist
+		
 	@staticmethod
 	@contextmanager
 	def save(cl):
@@ -45,44 +60,17 @@ class CommandList:
 	def new():
 		CommandList.current = CommandList()
 		return CommandList.current
+	
 	@staticmethod
 	def set(cmdlist): CommandList.current = cmdlist
+	
 	@staticmethod
 	def get(): return CommandList.current
+	
 	@staticmethod
 	def get_pos(): return len(CommandList.current)
 
 # ----- meta cmds ------
-
-CMD_DO = '_do'
-CMD_IF = '_if'
-CMD_ELIF = '_elif'
-CMD_ELSE = '_else'
-CMD_END_IF = '_end_if'
-CMD_WHILE = '_while'
-CMD_LABEL = '_label'
-CMD_SYNC = '_sync'
-CMD_SPAWN = '_spawn'
-CMD_TASK_DONE = '_task_done'
-CMD_TASK_STOP = '_task_stop'
-CMD_TASK_SUSPEND = '_task_suspend'
-CMD_RETURN = '_return'
-CMD_ON = '_on'
-CMD_LISTEN = '_listen'
-CMD_UNLISTEN = '_unlisten'
-CMD_WAIT = '_wait'
-CMD_GOTO = '_goto'
-CMD_REF = '_ref'
-CMD_THIS = '_this'
-CMD_WAKE = '_wake'
-CMD_EMIT = '_emit'
-CMD_WHILE = '_while'
-CMD_PICK_BEST = '_pick_best'
-CMD_WAKE = '_wake'
-CMD_REDO = '_redo'
-CMD_PARALLEL = '_parallel'
-CMD_REPEAT = '_repeat'
-CMD_RESET_LABEL = '_reset_label'
 class Command(CommandList):
 	def __init__(s, name='', params={}, command_list=None):
 		super().__init__(command_list)
@@ -92,6 +80,9 @@ class Command(CommandList):
 		s.kwargs={}
 		s.threads = []
 
+	def is_meta_command(s): return s.name[-1][0] == '_'
+	def is_async_command(s): return s.name[-1][0] != '_'
+	
 	def print_command(s):
 		with inc_tab():
 			msg = tabs() + '=========='+\
@@ -99,9 +90,13 @@ class Command(CommandList):
 				tabs() + 'commands: ' + str(s.commands) +\
 				tabs() + '==========='+tabs()
 		return msg
-		
+	
+	def get_name(s):
+		return s.name[-1]
+	
 	def __repr__(s):
 		return str(s.name)
+
 def gen_cmd(name, *args, **kwargs):
 	if type(name) is not tuple: name = ('', name)
 	cmd = Command(name)
@@ -155,7 +150,8 @@ class Block:
 	def stop(self):
 		self.active = False
 		cmds = CommandList.get()
-		CommandList.set(self.cl)
+		if self.cl:
+			CommandList.set(self.cl)
 		return cmds
 	def __enter__(self):
 		pass

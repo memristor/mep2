@@ -4,6 +4,10 @@ level=0
 class State:
 	sim=0
 	recompile=0
+
+	@staticmethod
+	def is_sim():
+		return _sim_mode != False
 class StateBase:
 	def __init__(self, value=None, name=None):
 		self.name = name
@@ -49,22 +53,22 @@ class _State:
 	states={}
 	def __init__(self, value=None, name=None, ishared=True, local=True, **kwargs):
 		self.name = name
-		if not local:
-			if name in self.states:
-				self.inst = self.states[name]
-			else:
-				self.inst = StateBase(value, name)
-				self.states[name] = self.inst
-		else:
+		if local:
 			if ishared and inst != inst_leader:
 				self.inst = inst_leader[len(inst)]
 				inst.append(self.inst)
 				if _core.debug:
 					print('using shared state')
 			else:
+				# new instance
 				self.inst = StateBase(value, name)
 				if inst: inst.append(self.inst)
-
+		else:
+			if name in self.states:
+				self.inst = self.states[name]
+			else:
+				self.inst = StateBase(value, name)
+				self.states[name] = self.inst
 		if _core.debug >= 3: print('initing state')
 		_core.emit('state:init', self, value, name, **kwargs)
 		
@@ -75,8 +79,8 @@ class _State:
 	def _set(self, value, report=True):
 		old = self.inst.get()
 		if old != value:
-			if report: _core.emit('state:change', self, old, value)
 			self.inst.set(value)
+			if report: _core.emit('state:change', self, old, value)
 	
 	def get(self):
 		return self.inst.get()

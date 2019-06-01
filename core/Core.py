@@ -1,11 +1,13 @@
 import asyncio
 from .Util import *
 import functools
-class Core():
+
+class Core:
+	
 	debug=0
 	def __init__(self, robot):
 		self.robot=robot
-		self.quit = False
+		self._quit = False
 		self.unique_cnt = 0
 		import builtins
 		
@@ -21,18 +23,21 @@ class Core():
 		from .ServiceManager import ServiceManager
 		from .Introspection import Introspection
 		from .TaskManager import TaskManager
+		from .Logger import Logger
 		
 		self.service_manager = ServiceManager()
 		self.sensors = Sensors()
 		self.entities = Entities()
 		self.task_manager = TaskManager()
 		self.introspection = Introspection()
+		self.logger = Logger()
+		self.log = self.logger.log
+		
+		self.logger.log_print()
 		
 		import signal
 		def on_interrupt(a,b): 
-			self.introspection.close()
-			self.emit('kill')
-			exit(0)
+			self.quit()
 		signal.signal(signal.SIGINT, on_interrupt)
 		
 		self.state = {'direction':1, 'state':'I'}
@@ -51,6 +56,7 @@ class Core():
 		self.has_task = self.task_manager.has_task
 		self.set_task = self.task_manager.set_task
 		self.export_cmd = self.task_manager.export_cmd
+		self.enable_task = self.task_manager.enable_task
 		# self.export_ns = self.task_manager.export_ns
 		self.get_current_task = self.task_manager.get_current_task
 		self.set_scheduler = self.task_manager.set_scheduler
@@ -83,6 +89,14 @@ class Core():
 		import core.Task
 		core.Task.StateBase = StateBase
 	
+	
+	
+	
+	def quit(self):
+		self.introspection.close()
+		self.emit('kill')
+		exit(0)
+		
 	def listen(self, name, func=None):
 		l=self.service_manager.listen
 		return (lambda func: l(name, func)) if not func else l(name, func)
@@ -91,6 +105,15 @@ class Core():
 		l=self.service_manager.listen_once
 		return (lambda func: l(name, func)) if not func else l(name, func)
 	
+	def get_position(self):
+		return self.position.get() + [self.angle.get()]
+		
+	def get_orientation(self):
+		return self.angle.get()
+		
+	def get_point(self):
+		return self.position.get()
+		
 	def set_position(self, x,y,o):
 		self.position.set([x,y])
 		self.angle.set(o)
@@ -102,10 +125,10 @@ class Core():
 		return sub_pt( pt, self.get_position()[:2] )
 		
 	def distance_to(self, pt):
-		return point_distance( self.get_position()[:2], pt )
+		return point_distance( self.get_point(), pt )
 	
 	def move_dir_vector(self):
-		return mul_pt( self.look_vector(), self.state['direction'] )
+		return self.look_vector(self.state['direction'])
 	
 	def add_module(self, module):
 		if not module: return
@@ -137,12 +160,20 @@ class Core():
 				# print('inters poly', p1, p2, poly.aabb)
 				return False
 		return True
+	def is_dangerous_pt(self, p1):
+		polygons = self.entities.get_entities('static')
+
+		for poly in polygons:
+			if is_point_in_poly(p1, poly.polygon):
+				# print('inters poly', p1, p2, poly.aabb)
+				return False
+		return True
 		
 	def fullstop(self):
 		for module in self.modules:
 			if hasattr(module, 'fullstop'):
 				module.fullstop()
-		self.task_manager.fullstop()
+		# self.task_manager.fullstop()
 		def on_round_end():
 			self.emit('round:end')
 			_e._do(self.task_manager.fullstop)
@@ -151,7 +182,7 @@ class Core():
 		self.task_manager.set_task(taskname)
 		
 		# self.emit('kill')
-		# self.quit = True
+		# self._quit = True
 		
 	def expose_task_commands(self):
 		import inspect
@@ -167,11 +198,21 @@ class Core():
 	def export_cmds(self):
 		
 		@self.export_cmd('sleep')
-		def sleep_cmd(s,_sim=False, _future=None):
+		def sleep_cmd(s,_sim=False, _future=None, _pause=0):
+			import time
 			if _sim: return s
 			# print('sleeping')
-			c=self.loop.call_later(s, lambda: _future.set_result(1))
-			_future.on_cancel.append(c.cancel)
+			if _pause == 1:
+				_future.fut.cancel()
+				_future.pause_time = time.time()
+			elif _pause == 2:
+				s = s - (_future.pause_time - _future.start_time)
+				c=self.loop.call_later(s, lambda: _future.set_result(1))
+			else:
+				_future.start_time = time.time()
+				c=self.loop.call_later(s, lambda: _future.set_result(1))
+				_future.fut = c
+				_future.on_cancel.append(c.cancel)
 		
 		from contextlib import contextmanager
 		
@@ -179,14 +220,31 @@ class Core():
 		@_core.do
 		def _next_cmd():
 			_e._goto(1, ref='main')
+			
+		@_core.export_cmd
+		@_core.asyn2
+		def enable_task(task_name):
+			self.enable_task(task_name)
 		
 		@_core.export_cmd
 		@contextmanager
 		def disabled(name):
+			# yield
+			# return
 			# with gen_block((lambda: _e._unlisten(name)), (lambda: _e._listen(name))):
 			_e._unlisten(name)
 			yield
 			_e._listen(name)
+			
+		@_core.export_cmd
+		@contextmanager
+		def disabled_entities(names):
+			# with gen_block((lambda: _e._unlisten(name)), (lambda: _e._listen(name))):
+			for i in names:
+				_core.entities.disable_entity(i)
+			yield
+			for i in names:
+				_core.entities.enable_entity(i)
 		
 		@_core.export_cmd
 		@_core.do
@@ -196,12 +254,12 @@ class Core():
 		@_core.export_cmd
 		@contextmanager
 		def _while(cond):
-			l = '__local'+str(_core.uniq_num())
+			l = '__local'+str(_core.unique_num())
 			l2 = l+'skip'
 			_e._L(l)
 			fut=_e._ref()
 			def _els(): _e._goto(l2, ref=fut)
-			_e._if(cond, _else=_els )
+			_e._if(cond, _else=_els)
 			yield
 			_e._goto(l)
 			_e._L(l2)
@@ -215,9 +273,6 @@ class Core():
 		@_core.do
 		def _emit(*args, **kwargs):
 			_core.service_manager.emit(*args, **kwargs)
-		
-	def get_position(self):
-		return self.position.get() + [self.angle.get()]
 	
 	def set_robot_size(self, x,y):
 		self.robot_size = [x,y]
@@ -246,7 +301,7 @@ class Core():
 		self.task_manager.set_task('init')
 	
 	async def main_loop(self):
-		while not self.quit:
+		while not self._quit:
 			await asyncio.sleep(0.00005)
 			# await asyncio.sleep(0)
 			self.task_manager.run_cycle()
@@ -255,10 +310,13 @@ class Core():
 	def run(self):
 		self.loop = asyncio.get_event_loop()
 		# run main loop
-		self.loop.run_until_complete(self.main_loop())
+		self.loop.run_until_complete(asyncio.gather(self.main_loop()))
 	
 	def spawn(self, *args, **kwargs):
 		return self.task_manager.get_current_task().spawn(*args, **kwargs)
+		
+	def call_later(self, time, func):
+		return self.loop.call_later(time, func)
 	
 	########################## DECORATORS #########################
 	def do(self, f=None, **kwargs2):

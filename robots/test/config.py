@@ -23,7 +23,7 @@ share.ip = State.ip
 
 
 from modules.default_config import timer
-timer.end_time = 10
+timer.end_time = 100
 
 @_core.export_cmd
 @_core.do

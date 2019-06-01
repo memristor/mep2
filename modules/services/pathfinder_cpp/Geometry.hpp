@@ -36,7 +36,7 @@ struct Point;
 typedef Point Vec2;
 
 struct Vec2F {
-	Vec2F(float x, float y) {
+	Vec2F(float x=0, float y=0) {
 		this->x = x;
 		this->y = y;
 	}
@@ -208,6 +208,8 @@ class Polygon : public AABB {
 		bool IsLineSegmentIntersectingPolygon(const LineSegment ls) const;
 		
 		void ExtendPolygon(int size);
+		
+		static Polygon JoinPolygons(std::vector<Polygon*> polys);
 };
 
 

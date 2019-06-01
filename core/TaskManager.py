@@ -1,17 +1,18 @@
-import asyncio
+import asyncio,types
 from core.Task import *
 
 class TaskManager:
 	def __init__(self):
 		self.current_task = None
 		self.tasks = []
-		
+		self.stopped = False
 		self.scheduler=None
 		self._init_task = None
 		self.cached_exported_cmds = None
 		self._export_ns=''
 		self._next_task = None
 		self.scheduling = None
+		self.task_reschedule_time = 0.5
 		
 		self.exports = type('exports', (), {'_sim': False})()
 		self.exported_commands = {}
@@ -26,6 +27,7 @@ class TaskManager:
 		return self.scheduler
 		
 	def schedule_task(self):
+		if self.stopped: return
 		print(col.yellow,'scheduling next task',col.white)
 		if self.scheduling: self.scheduling.cancel()
 		if self._next_task:
@@ -40,7 +42,7 @@ class TaskManager:
 			if type(r) is str: r=self.set_task(r)
 			if not r and self.get_pending_tasks():
 				print('failed to pick task')
-				self.scheduling = _core.loop.call_later(0.5, self.schedule_task)
+				self.scheduling = _core.loop.call_later(self.task_reschedule_time, self.schedule_task)
 			
 		if not self.get_pending_tasks():
 			_core.emit('strategy:done')
@@ -65,11 +67,13 @@ class TaskManager:
 		task = next((t for t in self.tasks if t.name == name), None)
 		return task
 	
+	### block & notify futures
 	def notify(self, queue_id):
 		self.get_current_task().notify(queue_id)
 		
 	def block(self, queue_id, future):
 		return self.get_current_task().block(queue_id, future)
+	###
 	
 	##### EXPORT #####
 	def init_export(self):
@@ -91,16 +95,20 @@ class TaskManager:
 				return wrapper
 			else:
 				cmd,func=cmd.__name__,cmd
-		from .Util import get_func_args
-		func_args = get_func_args(func)
-		is_async = '_future' in func_args
-		if is_async:
-			from .CommandList import wrap_gen
-			ref = (ns,cmd)
-			w = wrap_gen(ref)
-			self.exported_commands[ref] = func
-		else:
+		if type(func) not in (types.FunctionType, types.MethodType):
 			w = func
+		else:
+			from .Util import inspect_function
+			func_interfaces = inspect_function(func)
+			is_async = '_future' in func_interfaces
+			if is_async:
+				from .CommandList import wrap_gen
+				ref = (ns,cmd)
+				w = wrap_gen(ref)
+				self.exported_commands[ref] = (func, func_interfaces)
+				Task.exported_cmds = self.exported_commands
+			else:
+				w = func
 		o = self.exports
 		# export right away to exports
 		if ns != '': 
@@ -116,14 +124,15 @@ class TaskManager:
 	
 	def fullstop(self):
 		self.current_task = None
+		self.stopped = True
 		
 	def print_task_states(self):
 		states={
-			'pending': col.yellow + ' PENDING' + col.white,
-			'done': col.green + 'DONE' + col.white,
-			'suspended': col.red + 'SUSPENDED' + col.white,
-			'disabled': col.red + 'DISABLED' + col.white,
-			'denied': col.red + 'DENIED' + col.white
+			PENDING: col.yellow + ' PENDING' + col.white,
+			DONE: col.green + 'DONE' + col.white,
+			SUSPENDED: col.red + 'SUSPENDED' + col.white,
+			DISABLED: col.red + 'DISABLED' + col.white,
+			DENIED: col.red + 'DENIED' + col.white
 		}
 		for task in _core.task_manager.get_tasks():
 			print('task', task.name, states[task.state.get()])
@@ -146,16 +155,16 @@ class TaskManager:
 			if task.state.get() == DONE:
 				self.current_task = None
 				return False
-			print('running task', col.yellow, name, col.white)
+			
 			self.current_task = task
 			
 			def run_this():
 				# run default func
 				_core.emit('task:new', task.name)
 				self.expose_task_commands(task.module)
-				task.exported_cmds = self.exported_commands
 				if task.module.run() is False: return False
-			
+				print('running task', col.yellow, task.name, col.white)
+				
 			def on_task_done():
 				if Task.is_sim: return
 				state = self.current_task.state.get()
@@ -167,11 +176,14 @@ class TaskManager:
 						self.schedule_task()
 					elif state == SUSPENDED:
 						print(col.red,'suspended task', col.yellow + prev.name + col.white)
-						# print(col.red, 'cur is suspended', col.white)
+						
 						# try next pending task
+						prev.state.set(PENDING) # retry suspended task right away
 						self.schedule_task()
+						
 						# unsuspend suspended task
-						prev.state.set(PENDING)
+						# prev.state.set(PENDING)
+						
 						# if no pending task selected try again suspended task
 						# print(col.yellow,'trying again suspended task', col.white)
 						if not self.current_task or self.current_task == prev:
@@ -183,6 +195,10 @@ class TaskManager:
 		else:
 			return False
 
+	def clear_tasks(self):
+		self.tasks.clear()
+		self.current_task = None
+		
 	def load_tasks(self, robot_name, strategy_name):
 		import os, sys, importlib
 		strategy_folder_name = 'strategies'
@@ -219,6 +235,11 @@ class TaskManager:
 	def expose_task_commands(self, o):
 		if type(o) is not type: o.__dict__.update(self.exports.__dict__)
 	
+	def enable_task(self, task_name):
+		task = self.get_task(task_name)
+		if task.state.get() == DISABLED:
+			task.state.set(PENDING)
+	
 	def add_task_func(self, name, task_func, instance=0):
 		import types
 		if type(task_func) == types.FunctionType:
@@ -236,7 +257,8 @@ class TaskManager:
 		else:
 			task.state.set(PENDING)
 			
-		task.exported_cmds = self.exported_commands
+		# task.exported_cmds = self.exported_commands
+		# Task.exported_cmds = self.exported_commands
 		self.tasks.append(task)
 		return task
 	

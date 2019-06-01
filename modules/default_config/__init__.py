@@ -1,1 +1,1 @@
-__all__ = ['motion', 'pathfind','timer','chinch','share','lidar','sim_sched', 'lcd']
+__all__ = ['motion', 'pathfind','timer','chinch','share','lidar','sched_sim', 'lcd']

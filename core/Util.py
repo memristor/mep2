@@ -24,8 +24,13 @@ def get_task_param(task,name,default=0):
 def get_func_args(func):
 	co = func.__code__
 	import inspect
-	return co.co_varnames[:co.co_argcount+co.co_kwonlyargcount] + tuple(inspect.signature(func).parameters.keys())
-
+	return co.co_varnames[:co.co_argcount+co.co_kwonlyargcount] +\
+		tuple(inspect.signature(func).parameters.keys())
+		
+def inspect_function(func):
+	args = get_func_args(func)
+	return [i for i in ('_future', '_sim', '_pause') if i in args]
+			
 def pick(k,kw,default=None, delete=True):
 	c=default
 	if k in kw:
@@ -65,6 +70,17 @@ def load_boost_cpp_module(path, name=None):
 	module = _compile()
 	
 	return module
+
+def simple_hash(v):
+	h=5381
+	if type(v) is bytes:
+		# print('hashing', nice_hex(v))
+		for i in v: 
+			h = (h*33 + i) & 0xffff
+	else:
+		for i in v: h = (h*33 + ord(i)) & 0xffff
+	# print('hash is',h)
+	return int(h) & 0xffff
 
 # vector rotation
 def rot_vec(vec, rad):
@@ -126,7 +142,8 @@ def seg_intersect(A,B,C,D):
 def is_in_rect(pt, rect):
 	px,py=pt
 	x,y,w,h=rect
-	return in_range(px, x, x+w) and in_range(py, y, y+h)
+	ret= in_range(px, x, x+w) and in_range(py, y, y+h)
+	return ret
 	
 def get_seg_intersect_pt(a1,a2, b1,b2) :
 	da = sub_pt(a2, a1)
@@ -153,11 +170,41 @@ def is_intersecting_poly(p1, p2, poly):
 		if seg_intersect(p1,p2, poly[i-1], poly[i]):
 			return True
 	return False
+is_seg_intersecting_poly = is_intersecting_poly
+
+def is_poly_intersecting_poly(poly1, poly2):
+	if is_intersecting_poly(poly1[0], poly1[-1], poly2):
+		return True
+	for i in range(len(poly1)-1):
+		if is_intersecting_poly(poly1[i],poly1[i+1], poly2):
+			return True
+	return False
+
+def is_point_in_poly(pt, poly):
+	c = False
+	j = len(poly)-1
+#print(pt,poly)
+	for i,p1 in enumerate(poly):
+		p2 = poly[j]
+		if p1 == pt: return False
+		if (p1[1] >= pt[1]) != (p2[1] >= pt[1]):
+			x = (pt[1] - p1[1]) * (p2[0] - p1[0]) / (p2[1] - p1[1]) + p1[0]
+			if x - pt[0] >= 0:
+				c = not c
+		j = i
+	return c
+	
+def is_poly_inside_poly(poly1, poly2):
+	return not is_poly_intersecting_poly(poly1, poly2) and is_point_in_poly(polygon_midpoint(poly1), poly2)
 
 def polygon_square_around_point(point, rect_size):
 	x,y = point
 	a,b = (rect_size/2, rect_size/2) if type(rect_size) is int else (rect_size[0]/2, rect_size[1]/2)
 	return [(x-a,y-b), (x+a,y-b), (x+a,y+b), (x-a,y+b)]
+
+def rect_around_point(point, rect_size):
+	a,b = (rect_size/2, rect_size/2) if type(rect_size) is int else (rect_size[0]/2, rect_size[1]/2)
+	return [point[0]-a, point[1]-b, a*2, b*2]
 
 def polygon_rotate(poly, deg):
 	center=polygon_midpoint(poly)

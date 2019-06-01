@@ -13,6 +13,7 @@ class Introspection:
 	
 	def close(self):
 		self.tcp.close()
+		self.udp.close()
 		
 	def run(self):
 		self.port = Tcp.get_free_port(self.port, 10)
@@ -38,13 +39,18 @@ class Introspection:
 	def announce(self, addr=None):
 		import random
 		if addr == None:
-			self.udp.broadcast( p16(self.port) + p16(random.randint(0,2**16-1)), self.announcer_port+1)
+			j=json.dumps({'port':self.port, 'id': random.randint(0,2**16-1), 'name': _core.robot})
+			self.udp.broadcast(j.encode(), self.announcer_port+1)
 		else:
 			self.udp.send( p16(self.port) + p16(random.randint(0,2**16-1)), addr)
 		
 	def send_json(self, jobj):
-		m = bytes([3, ord('J')]) + json.dumps(jobj).encode()
+		m = bytes([ord('J')]) + json.dumps(jobj).encode()
 		self.ps.send(m)
+	
+	def send_log(self, log_dict):
+		if self.ps:
+			self.send_json( {'response':'log', 'content':log_dict } )
 		
 	def send_entity(self, ent):
 		jobj = {'response': 'entity', 'entity': ent.__dict__}
@@ -106,4 +112,4 @@ class Introspection:
 			await asyncio.sleep(0.1)
 			p=_core.get_position()
 			pkt = struct.pack('>3h', *p )
-			self.ps.send( bytes([3]) + b'PI' + pkt )
+			self.ps.send(b'PI' + pkt )

@@ -10,8 +10,8 @@ DANGER = 'danger'
 SAFE = 'safe'
 	
 class CollisionDetector:
-	def __init__(self, wait_time=1, det_distance=20, det_angle=45, size=[-1500, -1000, 3000, 2000]):
-		self.name = 'CollisionDetectorService'
+	def __init__(self, name='CollisionDetector', wait_time=1, det_distance=20, det_angle=55, size=[-1500, -1000, 3000, 2000]):
+		self.name = name
 		self.det_distance = det_distance
 		self.future = None
 		self.wait_time = wait_time
@@ -30,7 +30,7 @@ class CollisionDetector:
 		# print('dir:',_core.state['direction'], pt.name, pt.rel1, pt.rel2)
 		if _core.state['direction'] * pt.rel2[0] < 0:
 			return
-			
+		# print('dir',_core.state['direction'])
 		#print('new pt', pt.rel2)
 		if _core.state['state'] == 'R':
 			# print('turning')
@@ -38,18 +38,23 @@ class CollisionDetector:
 		# if pt.type == 'lidar': return False
 		if pt.type == 'lidar':
 			vlen = vector_length(pt.rel2)
-			if  vlen > 300:
+			if vlen > 350:
 				return False
 		
-			#print('is lidar', vlen)
-			if math.degrees( abs( vector_angle_diff(pt.rel2, [1,0]) ) ) > self.det_angle:
+			if math.degrees( abs(vector_angle_diff(pt.rel2, [1,0])) ) > self.det_angle:
 				return False
 			
-			if not is_in_rect(pt.abs2, add_pt(self.size, [100, 100, -200, -200])):
-				return False
+
+			print('is lidar', vlen)
+			
+#if not is_in_rect(pt.abs2, add_pt(self.size, [100, 100, -200, -200])):
+#				return False
 		# print('danger>?', pt.rel2)
 		if self.is_dangerous(pt):
 			self.emit_danger()
+		else:
+			# pass
+			print('not dangerous')
 			
 	def emit_danger(self):
 		if self.future is not None: self.future.cancel()
@@ -58,25 +63,31 @@ class CollisionDetector:
 		if self.state == DANGER: return
 		self.state = DANGER
 		self.evt.emit(self.state)
-		
+	
+	def resend_state(self):
+		self.evt.emit(self.state)
+	
 	def on_task_change(self, msg):
 		self.state = SAFE;
-		
+	
 	def on_new_entity(self, ent):
 		if ent.type != 'robot': return
-		if is_polygon_in_sector(ent.polygon, _core.get_position()[:2], _core.move_dir_vector(), self.det_distance, self.det_angle):
+		if is_polygon_in_sector(ent.polygon, _core.get_point(), 
+			_core.move_dir_vector(), self.det_distance, self.det_angle):
+			
 			self.emit_danger()
 	
 	def is_dangerous(self, pt):
 		p1, p2 = pt.abs1, pt.abs2
 		
+		return _core.is_dangerous(p1,p2)
 		# its not dangerous when robot sensor hits some static obstacle
-		polygons = _core.entities.get_entities('static')
-		for poly in polygons:
-			if is_intersecting_poly(p1, p2, poly.polygon):
-				print('inters poly', p1, p2, poly.aabb)
-				return False
-		return True
+		# polygons = _core.entities.get_entities('static')
+		# for poly in polygons:
+			# if is_intersecting_poly(p1, p2, poly.polygon):
+				# print('inters poly', p1, p2, poly.aabb)
+				# return False
+		# return True
 	
 	async def loop(self):
 		while 1:
@@ -89,17 +100,21 @@ class CollisionDetector:
 			# check entity map for collision
 			min_dist=max(_core.robot_size)
 			for ent in robots:
+				if not _core.is_dangerous_pt(ent.point):
+					continue
 				if point_distance(ent.point, _core.get_position()[:2]) < min_dist+self.det_distance+20:
-					if is_polygon_in_sector(ent.polygon, _core.get_position()[:2], _core.move_dir_vector(),  min_dist + self.det_distance, self.det_angle):
+					if is_polygon_in_sector(ent.polygon, _core.get_position()[:2], 
+						_core.move_dir_vector(),  min_dist + self.det_distance, self.det_angle):
 						# print('collision !!')
 						self.emit_danger()
 
 	def run(self):
 		self.det_distance += max(_core.robot_size)
 		_core.listen('sensor:new_pt', self.on_new_pt)
+		# _core.listen('sensor:refresh', self.on_new_pt)
 		_core.listen('task:new', self.on_task_change)
-		# _core.listen('entity:new', self.on_new_entity)
+#_core.listen('entity:new', self.on_new_entity)
+#	_core.listen('entity:refresh', self.on_new_entity)
 		self.evt = _core.service_manager.register('collision', CollisionService)
-		asyncio.ensure_future(self.loop())
-	
+#asyncio.ensure_future(self.loop())
 	

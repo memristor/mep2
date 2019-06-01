@@ -1,2 +1,3 @@
 *.pyc
 *.so
+!modules/sensors/tofsensor/vl53l0x_python.so

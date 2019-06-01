@@ -4,18 +4,35 @@ class Activator:
 		self.ps = None
 		self.name = name
 		self.future = None
+		self.data = 0
+		self.state = ''
 		if packet_stream:
 			self.set_packet_stream(packet_stream)
 			
 	@_core.module_cmd
 	def wait_activator(self):
-		print('waiting for activator')
-	
+		pass
+		
+	@_core.module_cmd
+	def check_activator(self):
+		print('checking act')
+		if self.data:
+			self.future.set_result(1)
+		else:
+			self.state = 'check_chinch'
+			print('checking for chinch')
+
 	def export_cmds(self):
 		_core.export_cmd('wait_activator', self.wait_activator)
+		_core.export_cmd('check_activator', self.check_activator)
 	
 	def on_recv(self, pkt):
-		if self.future and pkt[0] == 0:
+		if self.state == 'check_chinch' and self.future and pkt[0] == 1:
+			self.future.set_result(1)
+			self.state = 'chinch_ready'
+			print('waiting for activator')
+			
+		if self.state == 'chinch_ready' and self.future and pkt[0] == 0:
 			self.future.set_result(1)
 
 	def set_packet_stream(self, ps):

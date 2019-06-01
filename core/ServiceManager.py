@@ -19,14 +19,16 @@ class Emitter:
 		if listener in s.listeners:
 			s.listeners.remove(listener)
 			s.on_lose_listener(listener)
-		
+	
 	def on_new_listener(s, listener): pass # override
 	def on_lose_listener(s, listener): pass # override
 		
 	def emit(s, *params, listener=None, **kwargs):
+		print('emitting', s.evt_name, *params)
 		for l in s.listeners:
 			l.callback(*params, **kwargs)
-			if l._once: l.stop()
+			if l._once:
+				l.stop()
 
 class ServiceManager(Emitter):
 	def __init__(s):
@@ -51,18 +53,28 @@ class ServiceManager(Emitter):
 		l = Listener(evt_name, callback, emitter, args, kwargs)
 		emitter._add_listener(l)
 		return l
-		
+	
+	def clear_listeners(s):
+		for i in s.listeners:
+			s._remove_listener(i)
+	
 	def listen_once(s, *args, **kwargs):
 		l = s.listen(*args, **kwargs)
 		l._once = True
 		return l
 		
 	def emit(s, evt_name, *params, **kwargs):
+		_core.log('emitting2:', evt_name, *params, _type='event')
 		emitter = s._find_emitter(evt_name)
 		if emitter == s:
 			if evt_name in s.listener_map:
+				to_remove=[]
 				for l in s.listener_map[evt_name]:
 					l.callback(*params, **kwargs)
+					if l._once:
+						to_remove.append(l)
+				for l in to_remove:
+					s._remove_listener(l)
 		else:
 			# find foreigner emitter, and emit with it
 			emitter.emit(*params)

@@ -1,8 +1,6 @@
-PENDING='pending'
-FINISHED='finished'
-CANCELLED='cancelled'
-PAUSED='paused'
 from .State import StateBase
+from core.Constants import *
+
 class Future:
 	def __init__(self, thread=None):
 		self.result = StateBase(None)
@@ -22,15 +20,23 @@ class Future:
 		# print('fut set result')
 		if not self.done():
 			self.result.val = result
+			# wake waiting thread
 			if self.thread != None:
-				# print('waking thread:', self.thread.name)
-				self.thread.wake()
-			for on_done in self.on_done.val: on_done()
+				# print('fut set result', self)
+				# import traceback
+				# traceback.print_stack()
+				self.thread.wake(SYNC_FUTURE)
+			# on_done callback
+			for on_done in self.on_done.val:
+				# print('fut (set_result) on done', self) 
+				on_done()
 			self.clear()
-			self.state.val = FINISHED
+			self.state.val = DONE
 		
 	def get_result(self):
 		return self.result.val
+		
+	# get <=> get_result, set <=> set_result aliases
 	get = get_result
 	set = set_result
 	
@@ -59,12 +65,27 @@ class Future:
 		self.on_pause.append(on_pause)
 	
 	def pause(self):
-		if self.on_pause:
-			for f in self.on_pause:
-				f(pause=True)
+		for func in self.on_pause.val: func(pause=True)
+		self.state.val = PAUSED
+		return
+		'''
+		if self.on_pause.val:
+			for func in self.on_pause.val: func(pause=True)
 			self.state.val = PAUSED
 		else:
 			self.cancel()
+		'''
+			
+	def resume(self):
+		if self.paused():
+			self.state.val = PENDING
+			for func in self.on_pause.val: func(pause=False)
+	
+	def paused(self):
+		return self.get_state() == PAUSED
+		
+	def cancelled(self):
+		return self.get_state() in (CANCELLED,DONE)
 	
 	def clear(self):
 		self.on_done.clear()
@@ -77,7 +98,8 @@ class Future:
 	def cancel(self):
 		if self.state.val in (PENDING, PAUSED):
 			self.state.val = CANCELLED
-			for f in self.on_cancel.val: f()
+			for func in self.on_cancel.val: func()
+			
 			self.on_cancel.clear()
 			self.on_pause.clear()
 			
@@ -85,4 +107,4 @@ class Future:
 		return self.state.val
 		
 	def done(self):
-		return self.state.val != PENDING
+		return self.state.val == DONE

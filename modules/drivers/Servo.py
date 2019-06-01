@@ -38,20 +38,25 @@ class Servo:
 		self.ps = packet_stream
 		self.prev_val = 0
 		self.servo_tries = 0
+		self.cur_action = None
 		self.future = None
 	def set_packet_stream(self,ps):
 		self.ps = ps
 	def export_cmds(self, ns=''):
 		with _core.export_ns(ns):
 			_core.export_cmd('action', self.action)
+
 	@_core.module_cmd
-	def action(self, f, val=None, poll=True):
+	def action(self, f, val=None, poll=True, _sim=0):
 		if f not in servo_commands:
 			print('function ' + f + ' doesn\'t exist')
 			return
 
+		if _sim:
+			self.future.set(1)
+			return
 		servo_id = self.servo_id
-		
+		print('servo', self.name, 'action', f, val)
 		cmd = servo_commands[f]
 		servo_len = 4
 		servo_func = cmd[0]
@@ -124,13 +129,15 @@ class Servo:
 				
 				
 			if self.servo_tries > 10:
-				self.future.set_result(0)
-			self.prev_val = r
-			
-			if abs(r - self.val) < 50:
-				if self.future: self.future.set_result(1)
+				if self.future: self.future.set(0)
 				self.val = None
-				# print('SERVO FINISHED')
+			self.prev_val = r
+			print('servo', self.name, self.servo_tries)
+			
+			if self.val != None and abs(r - self.val) < 50:
+				if self.future: self.future.set(1)
+				self.val = None
+				print('servo', self.name, 'finished')
 			
 		
 	def run(self):

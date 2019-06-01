@@ -235,14 +235,24 @@ Path Pathfinder::Search(Point start, Point end) {
 	std::priority_queue<NodeLink*, std::vector<NodeLink*>, NodeLinkCostCompare> open_list;
 	Path path;
 
+	auto it = m_polygons.begin();
+	std::vector<my::Polygon*> polys;
+	while(it != m_polygons.end()) {
+		it = std::find_if(it, m_polygons.end(), [&](std::pair<const int, my::Polygon>& p) {return p.second.IsPointInsidePolygon(start);});
+		if (it != m_polygons.end()) {
+			polys.push_back(&it->second);
+			it++;
+		}
+	}
 	
-	auto pf = std::find_if(m_polygons.begin(), m_polygons.end(), [&](std::pair<const int, my::Polygon>& p) {return p.second.IsPointInsidePolygon(start);});
-	
-	if(pf != m_polygons.end()) {
+	if(!polys.empty()) {
 		std::cout << "start pt in poly\n";
-		Point exit_pt = pf->second.GetClosestExitPoint(start);
+		Polygon poly = Polygon::JoinPolygons(polys);
+		// Point exit_pt = pf->second.GetClosestExitPoint(start);
+		Point exit_pt = poly.GetClosestExitPoint(start);
 		dbg(sdb::Stage stage("\x1b[33mExitPoint\x1b[0m");)
 		dbg(stage.Report("point", exit_pt, 0xff5763F2));
+		dbg(stage.Report("polygon", poly, 0xff555555));
 		start = exit_pt;
 	}
 	
@@ -253,7 +263,7 @@ Path Pathfinder::Search(Point start, Point end) {
 	
 	dbg(sdb::Stage stage("\x1b[33mPathfinder\x1b[0m");)
 	if(findObstacleInLineOfSight(LineSegment(start, end)) == 0) {
-		// path.push_back(start);
+		path.push_back(start);
 		path.push_back(end);
 		dbg(stage.Msg("found LOS start, end\n");)
 		return path;
@@ -279,7 +289,7 @@ Path Pathfinder::Search(Point start, Point end) {
 	for(NodeLink* l : startNode->visible_nodes) {
 		l->cost = l->distance;
 		l->cost_with_heuristic = l->cost + vec_length((endNode->point)-(l->target->point));
-		
+					
 		open_list.push(l);
 		dbg(stage.Msg("pushing ", node_get_coord(l->target));)
 	}
@@ -310,7 +320,7 @@ Path Pathfinder::Search(Point start, Point end) {
 			dbg(stage.Break();)
 			path.push_front(end);
 			Node* n = bestLink->source;
-			while(n && n->parent) {
+			while(n) {
 				dbg(stage.Msg("path: " + node_get_coord(n));)
 				path.push_front(n->point);
 				n=n->parent;
