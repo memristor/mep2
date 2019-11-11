@@ -1,9 +1,11 @@
-import time,json
+import time,json,os
 class Logger:
 	def __init__(self):
 		import datetime
 		d = datetime.datetime.now()
 		# fname = d.strftime('logs/%d-%m-%Y-%H-%M-%S.log')
+		if not os.path.exists('logs'):
+			os.mkdir('logs')
 		try:
 			with open('logs/cnt.txt', 'r') as f:
 				cnt = int(f.read())
