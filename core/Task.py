@@ -73,14 +73,12 @@ class Thread(CommandList):
 		s.cancel()
 		for done_func in s.on_done.val:
 			# debug
-			# print('on done func')
 			done_func()
 		
 		if s.parent.val:
 			# print('run_on_done, parent', s.name, s.cmd.get_name())
 			if s.cmd.get_name() in (CMD_DO, CMD_IF):
 				# debug
-				# print('waking parent', s.parent.val.name)
 				s.parent.val.wake(SYNC_DO)
 			
 			if s in s.parent.val.cmd.threads:
@@ -671,13 +669,13 @@ class Task:
 			r.inc_ip()
 			return
 		
-		if type(c) is Future:
+		if type(c) is Future: # wait for future to be resolved
 			c = [c]
 		
-		if type(evt) is str: # sync event
+		if type(evt) is str: # sync event (_sync(event='motion:stuck'))
 			_core.on(evt, lambda:rn.wake(SYNC_EVENT))
 		
-		elif type(c) is str: # _sync(label)
+		elif type(c) is str: # _sync('label') wait for label to be consumed
 			label_name = c
 			# check if already passed
 			passed = next((l for l in s.passed_labels.get() if l[0] == label_name), False)
@@ -687,7 +685,8 @@ class Task:
 			s.label_syncs.append((None, label_name, on_label))
 			if _core.debug: print('[', rn.name, '] waiting label sync', label_name)
 			rn.sync(SYNC_LABEL)
-		elif type(c) is list:
+			
+		elif type(c) is list: # wait for threads in list to die
 			cmd.wake_counter=len(c)
 			for i in c:
 				r2=s.get_ref(i)
@@ -699,12 +698,10 @@ class Task:
 					if cmd.wake_counter <= 0: rn.wake(SYNC_THREAD, r2)
 				r2.on_done.append(on_done)
 		
-		elif type(c) is int:
-			# wait unconditionally
+		elif type(c) is int: # wait unconditionally
 			rn.sync(SYNC_UNCOND)
 			
-		elif c is None:
-			# wait for active child threads to die
+		elif c is None: # wait for active child threads to die
 			c = r.get_active_threads()
 			if _core.debug >= 2:
 				print(r.name, 'active threads', r.cmd.threads)

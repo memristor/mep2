@@ -1,10 +1,11 @@
 def run():
 	State.strat_counter = 0
 	
+	strategy_list=['run_tests', 'test_if_while', 'test_listener', 'test_scope',
+		'test_sync/sync', 'test_sync/sync_simple', 'test_simulator2', 'test_sync/sync_label']
+	
 	@_core.listen('strategy:done')
 	def next_strategy_pls():
-		strategy_list=['run_tests', 'test_if_while', 'test_listener', 'test_scope',
-			'test_sync/sync', 'test_sync/sync_simple', 'test_simulator2']
 		print('strategy', strategy_list[State.strat_counter], 'is done')
 		if State.timer_future:
 			State.timer_future.cancel()

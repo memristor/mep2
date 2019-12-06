@@ -21,6 +21,7 @@ SYNC_FUTURE = 4 # none
 SYNC_THREAD = 8 # will pause/continue
 SYNC_EVENT = 16 # will pause and continue
 SYNC_FORCE = 32 # no pause, no cancel just block/unblock thread
+SYNC_LABEL = 64 # no pause, no cancel just block/unblock thread
 
 NEW = 0
 PAUSE = 1
