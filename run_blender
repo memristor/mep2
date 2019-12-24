@@ -1,2 +1,3 @@
 #!/bin/bash
-cd tools && blender terrain.blend -y
+path=""
+cd tools && ${path}blender terrain.blend -y
