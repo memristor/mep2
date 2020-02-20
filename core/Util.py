@@ -60,7 +60,7 @@ def load_boost_cpp_module(path, name=None):
 	def _compile():
 		try:
 			module = importlib.import_module(module_path)
-		except ModuleNotFoundError:
+		except:
 			print(col.yellow, 'compiling module:', col.white, path)
 			os.system('make -C ' + mod_path)
 			module = importlib.import_module(module_path)
