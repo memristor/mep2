@@ -3,6 +3,7 @@ _sim_time=0
 level=0
 class State:
 	sim=0
+	sensor_sim=0
 	recompile=0
 
 	@staticmethod
