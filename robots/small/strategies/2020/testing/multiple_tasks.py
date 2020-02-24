@@ -1,4 +1,4 @@
-weight = 2
+# weight = 2
 _instances = 2
 points = [ (100, 200), (-100, 200) ]
 

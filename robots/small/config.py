@@ -179,62 +179,29 @@ def round_end():
 # Definisane tacke
 @_core.export_cmd
 def coord(c):
-	zuta = {
-		'prilaz_plavi': (720,375), # ok 2.sto
-		'vaga' : (158,470),  # (190-10,470) 2.sto ILI (162,470)
-		
-		'gold_setpos': (-450, -600),
-		'aktiviranje_akceleratora': (-60,-819), #(-60,-835+13)
-		
-		'goldenium': (-720,-750),
-
-		'haos_zona': (652,-20+10),
-		
-		'3_paka_priprema': (1000,275),
-		'3_paka_crveno': (1000-10-160,-580), #(800-40,-550-40)
-		'prilaz_1_pak': (1000,350),
-		'prilaz_2_pak': (900,350),
-		'prilaz_3_pak': (800,350),
-		'prilaz_4_pak': (700,350),
-		'prilaz_5_pak': (600,350),
-		'prilaz_6_pak': (500,350),
-		
-		'prilaz_7_pak': (-475,330),
-		'prilaz_8_pak': (-575,330),
-		'prilaz_9_pak': (-675,330),
-		'prilaz_10_pak': (-775,330),
-		'prilaz_11_pak': (-875,330),
-		'prilaz_12_pak': (-975,330),
-		
-	}
 	ljubicasta = {
-		'prilaz_plavi': (-715,375),
-		'vaga': (-162,470),
-		
-		'gold_setpos': (450, -600),
-		'aktiviranje_akceleratora': (160,-827), # (160,-835+13) 2.sto
-		
-		'goldenium': (720,-750),
-		
-		'haos_zona': (-652,-20),
-	
-		'3_paka_priprema': (-1000,275),
-		'3_paka_crveno': (-830,-580), #(-950,-590) 2.sto
-		
+		'vetrokazi': (1360, 850),
+		'nase_case' : (1360, 720),
+		'srednje_blize': (700, -850),
+		'srednje_dalje': (-700, -850),
+		'mala_luka': (-300, 600),
+		'velika_luka': (1000, -200),
+		'marina_sever': (1300, -750),
+		'marina_jug': (1300, 350),
+		'aktivacija_tornja': (1200, -850)
 
-		'prilaz_1_pak': (-1000,350),
-		'prilaz_2_pak': (-900,350),
-		'prilaz_3_pak': (-800,350),
-		'prilaz_4_pak': (-700,350),
-		'prilaz_5_pak': (-600,350),
-		'prilaz_6_pak': (-500,350),
-		
-		'prilaz_7_pak': (475,330),
-		'prilaz_8_pak': (575,330),
-		'prilaz_9_pak': (675,330),
-		'prilaz_10_pak': (775,330),
-		'prilaz_11_pak': (875,330),
-		'prilaz_12_pak': (975,330),
+	}
+	zuta = {
+		'vetrokazi': (-1360, 850),
+		'nase_case' : (-1360, 720),
+		'srednje_blize': (-700, -850),
+		'srednje_dalje': (700, -850),
+		'mala_luka': (300, 600),
+		'velika_luka': (-1000, -200),
+		'marina_sever': (-1300, -750),
+		'marina_jug': (-1300, 350),
+		'aktivacija_tornja': (-1200, -850)
+
 	}
 		
 	if State.color == 'zuta':
