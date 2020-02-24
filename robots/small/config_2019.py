@@ -1,4 +1,4 @@
-#Small robot 2020 config
+#new config
 from core.Util import *
 from modules.sensors.BinaryInfrared import *
 from modules.sensors.PressureSensor import *
@@ -8,7 +8,7 @@ from modules.services.ShareService import *
 from modules.drivers.Servo import *
 from core.network.Splitter import *
 
-_core.set_robot_size(266,175)
+_core.set_robot_size(290,160)
 
 
 ######## Rope Activator ############
@@ -57,12 +57,8 @@ lidar.tune_angle = -100+180-30+20+20
 
 #### Pressure Sensors ########
 pressure = [ 
-	PressureSensor('sp1', 1, can.get_packet_stream(0x80007801, 0x80007800)),
-	PressureSensor('sp2', 2, can.get_packet_stream(0x80007802, 0x80007800)),
-	PressureSensor('sp3', 2, can.get_packet_stream(0x80007803, 0x80007800)),
-	PressureSensor('sp4', 1, can.get_packet_stream(0x80007804, 0x80007800)),
-	PressureSensor('sp5', 2, can.get_packet_stream(0x80007805, 0x80007800)),
-	PressureSensor('sp6', 2, can.get_packet_stream(0x80007806, 0x80007800))
+	PressureSensor('napredp', 1, can.get_packet_stream(0x80007801, 0x80007800)),
+	PressureSensor('nazadp', 2, can.get_packet_stream(0x80007802, 0x80007800)) 
 ]
 _core.add_module( pressure )
 for i in pressure: i.export_cmds(i.name)
@@ -79,12 +75,10 @@ for i in color: i.export_cmds(i.name)
 #########################
 
 ######## STATIC OBSTACLES #######
-_core.entities.add_entity('static', 'zuta_kamenje', [[600, 850], [580, 850], [580, 1000], [600, 1000]])
-_core.entities.add_entity('static', 'ljubicasta_kamenje', [[-600, 850], [-620, 850], [-620, 1000], [-600, 1000]])
-_core.entities.add_entity('static', 'sredina_kamenje', [[0, 700], [20, 700], [20, 1000], [0, 1000]])
-
-# _core.entities.add_entity('pathfind', 'haos_zona', polygon_square_around_point((-495,45), 220))
-# _core.entities.add_entity('pathfind', 'haos_zona_zuta', polygon_square_around_point((495,45), 220))
+_core.entities.add_entity('static', 'rampa', [[-1050,500], [-35,500], [-35, 368], [45,352], [41, 536], [1055,516], [1089, 992], [-1041, 964], [-1050, 500]])
+_core.entities.add_entity('static', 'akcelerator', [[-999,-932-10], [991, -944-10], [991, -1000-10], [-991,-1000-10]])
+_core.entities.add_entity('pathfind', 'haos_zona', polygon_square_around_point((-495,45), 220))
+_core.entities.add_entity('pathfind', 'haos_zona_zuta', polygon_square_around_point((495,45), 220))
 #################################
 
 #################### SERVOS ###################################
@@ -93,38 +87,51 @@ servo_id = 0x80006c00
 servo_stream = can.get_packet_stream(servo_id)
 spl=Splitter(servo_stream)
 ###
-servo_izvuci_desno = Servo('servo_izvuci_desno', servo_id=1, packet_stream=spl.get())
-servo_izvuci_levo = Servo('servo_izvuci_levo', servo_id=2, packet_stream=spl.get())
+servo_rucica_desno = Servo('servo_rucica_desno', servo_id=1, packet_stream=spl.get())
+servo_rucica_leva = Servo('servo_rucica_leva', servo_id=2, packet_stream=spl.get())
 
-servo_gore_desno = Servo('servo_gore_desno', servo_id=3, packet_stream=spl.get())
-servo_gore_levo = Servo('servo_gore_levo', servo_id=4, packet_stream=spl.get())
+servo_rfliper = Servo('servo_rfliper', servo_id=9, packet_stream=spl.get())
+servo_lfliper = Servo('servo_lfliper', servo_id=7, packet_stream=spl.get())
+
+servo_napredgold = Servo('servo_napredgold', servo_id=3, packet_stream=spl.get())
+servo_nazadgold = Servo('servo_nazadgold', servo_id=5, packet_stream=spl.get())
 
 # export commands for each servo (for async control)
-servos = [servo_izvuci_desno, servo_izvuci_levo, servo_gore_desno, servo_gore_levo]
+servos = [servo_rucica_desno, servo_rucica_leva, servo_rfliper, servo_lfliper, servo_napredgold, servo_nazadgold]
 for i in servos: i.export_cmds(i.name)
 _core.add_module(servos)
 
 @_core.export_cmd
 @_core.do
-def levo_izvuci(v):
-	_e.servo_izvuci_levo.action('GoalPosition', 283 if v == 1 else 601)
+def rrucica(v):
+	_e.servo_rucica_desno.action('GoalPosition', 283 if v == 1 else 601)
 
 @_core.export_cmd
 @_core.do
-def desno_izvuci(v):
-	_e.servo_izvuci_desno.action('GoalPosition', 261 if v == 1 else 570)
+def lrucica(v):
+	_e.servo_rucica_leva.action('GoalPosition', 261 if v == 1 else 570)
 
 @_core.export_cmd
 @_core.do
-def levo_visina(v):
-	_e.servo_gore_levo.action('GoalPosition', [30,350,471][v])
+def rfliper(v):
+	# _e.servo_rfliper.action('GoalPosition', [20,289,424][v])
+	_e.servo_rfliper.action('GoalPosition', [30,350,471][v])
 
 @_core.export_cmd
 @_core.do
-def desno_visina(v):
+def lfliper(v):
 	# _e.servo_lfliper.action('GoalPosition', [921,606,504][v])
-	_e.servo_gore_desno.action('GoalPosition', [999,700,540][v])
+	_e.servo_lfliper.action('GoalPosition', [999,700,540][v])
 
+@_core.export_cmd
+@_core.do
+def nazgold(v):
+	_e.servo_napredgold.action('GoalPosition', [150-25,330-25,550-25-10,655-40-10][v]) #674 je donji polozaj, 300 je bio najvisi
+
+@_core.export_cmd
+@_core.do
+def napgold(v):
+	_e.servo_nazadgold.action('GoalPosition', [87,450,360,550,623][v])
 ####################################################################
 
 ######## Pumps ########
@@ -145,6 +152,16 @@ lcd.init_master()
 share.ip = '127.0.0.1' if State.sim else '192.168.1.52'
 share.port = 6000
 ####################################
+
+###### Experiment ########
+tcp_experiment = Tcp(name='experiment', ip='127.0.0.1', port=8000)
+pt = tcp_experiment.get_packet_stream()
+_core.add_module(tcp_experiment)
+@_core.export_cmd
+@_core.do
+def experiment(v):
+	pt.send(v.encode())
+##########################
 
 ##### Camera ########
 import socket
@@ -253,10 +270,12 @@ State.slot2z = [ (0,0) ]
 ###### ROBOT DEFAULT INITIAL TASK #######
 
 def servo_init():
-	servo_izvuci_desno.action('Speed', 250)
-	servo_izvuci_levo.action('Speed', 250)
-	servo_gore_desno.action('Speed', 250)
-	servo_gore_levo.action('Speed', 250)
+	servo_napredgold.action('Speed', 250)
+	servo_rucica_desno.action('Speed', 250)
+	servo_rucica_leva.action('Speed', 250)
+	servo_nazadgold.action('Speed', 250)
+	servo_lfliper.action('Speed', 500)
+	servo_rfliper.action('Speed', 500)
 	
 def pids():
 	# _e.r.conf_set('stuck_distance_max_fail_count',120)
@@ -283,9 +302,13 @@ def init_task():
 	_e.r.speed(100)
 	
 
+	_e.lfliper(0)
+	_e.rfliper(0)
+	
 	_e.chinch()
 	
 	timer.start_timer()
+	_e.experiment('H')
 
 
 _core.init_task(init_task)
