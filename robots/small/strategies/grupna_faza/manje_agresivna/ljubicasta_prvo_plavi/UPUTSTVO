@@ -1,2 +1,0 @@
-Samo promeniti prioritet taska plavi pak na vise od aktiviranje akceleratora (to je br 9) aktiviranje akceleratora weight=8.
-Dodati r.goto(-762,-713,-1) u pocetak posle curve da ne bi zakcio pocetni pak.
