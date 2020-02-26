@@ -80,7 +80,7 @@ for i in color: i.export_cmds(i.name)
 
 ######## STATIC OBSTACLES #######
 _core.entities.add_entity('static', 'zuta_kamenje', [[600, 850], [580, 850], [580, 1000], [600, 1000]])
-_core.entities.add_entity('static', 'ljubicasta_kamenje', [[-600, 850], [-620, 850], [-620, 1000], [-600, 1000]])
+_core.entities.add_entity('static', 'plava_kamenje', [[-600, 850], [-620, 850], [-620, 1000], [-600, 1000]])
 _core.entities.add_entity('static', 'sredina_kamenje', [[0, 700], [20, 700], [20, 1000], [0, 1000]])
 
 # _core.entities.add_entity('pathfind', 'haos_zona', polygon_square_around_point((-495,45), 220))
@@ -179,7 +179,7 @@ def round_end():
 # Definisane tacke
 @_core.export_cmd
 def coord(c):
-	ljubicasta = {
+	plava = {
 		'vetrokazi': (1360, 850),
 		'nase_case' : (1360, 720),
 		'srednje_blize': (700, -850),
@@ -207,7 +207,7 @@ def coord(c):
 	if State.color == 'zuta':
 		return zuta[c]
 	else:
-		return ljubicasta[c]
+		return plava[c]
 
 # coord constants
 State.slot1lj = [ (0,0)  ]
