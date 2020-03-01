@@ -620,8 +620,11 @@ And after that write the path to the Blender directory in the "run_blender" file
 For example: path="/home/milos/Documents/memra/blender/"
 
 Tkinter and libboost:
+
 	sudo apt-get update
+	
 	sudo apt-get install python3-tk
+	
 	sudo apt-get install libboost-python-dev
 	
 
