@@ -608,15 +608,24 @@ In theory all tasks can be made from single task, but idea is to use task instan
 
 # How to visualise
 
-__Requirements: blender__
+__Requirements: blender 2.79, Tkinter, libboost-python-dev__
 
-You have to install blender either from ubuntu repository or https://www.blender.org
+Blender:
 
-For Ubuntu:
-```bash
-sudo apt-get update
-sudo apt-get install blender
-```
+You have to install blender 2.79 https://www.blender.org
+This version is OK
+https://download.blender.org/release/Blender2.79/latest/blender-2.79-e045fe53f1b0-linux-glibc217-x86_64.tar.bz2
+
+And after that write the path to the Blender directory in the "run_blender" file.
+For example: path="/home/milos/Documents/memra/blender/"
+
+Tkinter and libboost:
+	sudo apt-get update
+	sudo apt-get install python3-tk
+	sudo apt-get install libboost-python-dev
+	
+
+
 
 You need 3 terminals:
 
