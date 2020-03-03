@@ -608,7 +608,7 @@ In theory all tasks can be made from single task, but idea is to use task instan
 
 # How to visualise
 
-__Requirements: blender 2.79, Tkinter, libboost-python-dev__
+__Requirements: blender 2.79, Tkinter, libboost-python-dev, g++__
 
 Blender:
 
@@ -626,6 +626,8 @@ Tkinter and libboost:
 	sudo apt-get install python3-tk
 	
 	sudo apt-get install libboost-python-dev
+
+        sudo apt-get install g++
 	
 
 
