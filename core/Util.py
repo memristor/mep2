@@ -21,6 +21,9 @@ def get_task_param(task,name,default=0):
 		return v()
 	return v
 
+def get_attr(t, v):
+	return v if hasattr(t,v) else None
+
 def get_func_args(func):
 	co = func.__code__
 	import inspect

@@ -41,6 +41,9 @@ class Logger:
 		# self.f.write(('<%s time="%.4f" >' % (_type,t)) +' '.join([str(m) for m in msg])+'</'+_type+'>\n')
 		logmsg = self.replace_colors(' '.join([str(m) for m in msg])) if len(msg) > 1 else msg[0]
 		
+		if type(logmsg) == bytes:
+			logmsg = str(logmsg)
+
 		j = { 'type':_type, 'time':t, 'content': logmsg }
 		
 		try:

@@ -648,8 +648,8 @@ class Task:
 	def cmd_reset_label(s, cmd, r):
 		lbl = cmd.args[0] if cmd.args else None
 		if lbl:
-			r.passed_labels.val = [i for i in r.passed_labels if i[0] != lbl]
-			s.passed_labels.val = [i for i in s.passed_labels if i[0] != lbl]
+			r.passed_labels.val = [i for i in r.passed_labels.val if i[0] != lbl]
+			s.passed_labels.val = [i for i in s.passed_labels.val if i[0] != lbl]
 		else:
 			r.passed_labels.clear()
 			s.passed_labels.clear()

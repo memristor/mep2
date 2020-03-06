@@ -313,7 +313,10 @@ class Core:
 		self.loop.run_until_complete(asyncio.gather(self.main_loop()))
 	
 	def spawn(self, *args, **kwargs):
-		return self.task_manager.get_current_task().spawn(*args, **kwargs)
+		if self.task_manager.get_current_task():
+			return self.task_manager.get_current_task().spawn(*args, **kwargs)
+	def spawn_side(self, *args, **kwargs):
+		return self.task_manager.side_task.spawn(*args, **kwargs)
 		
 	def call_later(self, time, func):
 		return self.loop.call_later(time, func)
@@ -341,6 +344,7 @@ class Core:
 			return ret
 		return wrapper
 		
+
 	def module_cmd(s,f):
 		@functools.wraps(f)
 		def wrapper(*args, _future=None, **kwargs):

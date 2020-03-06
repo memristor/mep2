@@ -16,6 +16,8 @@ class TaskManager:
 		
 		self.exports = type('exports', (), {'_sim': False})()
 		self.exported_commands = {}
+			
+		self.side_task=None
 		
 		from core.schedulers.BasicScheduler import BasicScheduler
 		self.set_scheduler(BasicScheduler())
@@ -138,6 +140,11 @@ class TaskManager:
 			print('task', task.name, states[task.state.get()])
 	
 	def setup_init_task(self):
+		def sidetask():
+			_e._sync(1)
+		self.side_task=self.add_task_func('sidetask',sidetask)
+		self.set_task('sidetask')
+		self.tasks.remove(self.side_task)
 		task = next((t for t in self.tasks if t.name == 'init'), None)
 		if not task:
 			def run_this(): pass
@@ -265,5 +272,7 @@ class TaskManager:
 	def run_cycle(self):
 		if self.current_task:
 			self.current_task.run_cycle()
+		if self.side_task:
+			self.side_task.run_cycle()
 			# print('run_cycle: cur task', self.current_task)
 			

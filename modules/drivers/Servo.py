@@ -91,8 +91,9 @@ class Servo:
 			data += [2] if pfmt == 'h' else [1]
 			
 		self.ps.send(struct.pack(fmt, *data))
+		print('data send', data)
 		
-		if State.sim and self.future:
+		if (State.sim and self.future) or (self.future and State.get('ignore_servo')):
 			self.future.set_result(1)
 		else:
 			# print(self.servo_id, self.name, 'starting cmd', f, self.val)

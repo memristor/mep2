@@ -61,10 +61,10 @@ def pump(x, v):
 #####################################
 
 ################### SERVOS #######################
-servo_id = 0x80008d00
+servo_id = 0x80006c00
 spl = Splitter(can.get_packet_stream(servo_id))
-servo_lok  = Servo('servo_lok', servo_id=22, packet_stream=spl.get())
-servo_rok = Servo('servo_rok', servo_id=21, packet_stream=spl.get())
+servo_lok  = Servo('servo_lok', servo_id=21, packet_stream=spl.get())
+servo_rok = Servo('servo_rok', servo_id=22, packet_stream=spl.get())
 servo_lfliper = Servo('servo_lfliper', servo_id=25, packet_stream=spl.get())
 servo_rfliper = Servo('servo_rfliper', servo_id=2, packet_stream=spl.get()) 
 
@@ -73,25 +73,104 @@ servos = [servo_lok, servo_rok, servo_lfliper, servo_rfliper]
 for i in servos: i.export_cmds(i.name)
 _core.add_module(servos)
 
+
+# communication with gpio interrupt process which have sudo rights
+from core.network.packet.SimplePacket import SimplePacket
+# sudo python3 /home/memristor/gpio/interrupt2.py is listening at 3500, process which sends interrupts
+# this process is ran from /etc/rc.local at boot
+tcp_gpio = Tcp(name='gpio_communicator', ip='127.0.0.1', port=3500)
+# simple packet with length of 2 bytes (to packetize tcp continual stream)
+gp = SimplePacket(2, tcp_gpio.get_packet_stream())
+_core.add_module(tcp_gpio)
+
+# natural (-1024,1024) => (0,2048) for servo
+def wheel_val(v):
+	return -v+1024 if v<0 else v
+
+# interrupt receiever
+def gpio_recv(c):
+	c=c.decode()
+
+	# spawn thread task independent
+	@_core.spawn_side
+	def _():
+		v=800	
+		# 05 = left down, 06 = left up
+		if c in ('05','06'):
+			v = -v if c == '05' else v
+			# move back a little, to leave switch
+			_e.servo_lok.action('Speed',wheel_val(v))
+			_e.sleep(0.15)
+			_e.servo_lok.action('Speed',wheel_val(0))
+			# must use _do because _core.spawn is not in _e
+			@_e._do
+			def _():
+				# spawn label from "sidetask" into active task
+				@_core.spawn
+				def _():
+					_e._L('lok_visina')	
+
+		# 13 left down, 19 left up
+		elif c in ('13','19'):
+			v = -v if c == '19' else v
+			# move back a little, to leave switch
+			_e.servo_rok.action('Speed',wheel_val(v))
+			_e.sleep(0.15)
+			_e.servo_rok.action('Speed',wheel_val(0))
+			# must use _do because _core.spawn is not in _e
+			@_e._do
+			def _():
+				# spawn label from "sidetask" into active task
+				@_core.spawn
+				def _():
+					_e._L('rok_visina')	
+		
+gp.recv = gpio_recv
+
+@_core.do
+def init_servos():
+	servo_lfliper.action('Speed', 200)
+	servo_rfliper.action('Speed', 200)
+
+	# wheel mode
+	_e.servo_rok.action('CCWAngleLimit', 0)
+	_e.servo_rok.action('CWAngleLimit', 0)
+
+	# wheel mode
+	_e.servo_lok.action('CCWAngleLimit', 0)
+	_e.servo_lok.action('CWAngleLimit', 0)
+
 @_core.export_cmd
 @_core.do
 def rok_visina(v):
-	_e.servo_rok.action('GoalPosition', [537, 465, 211][v])
+	_e._reset_label('rok_visina')
+	_e._print('rok_visina', v)
+	_e.servo_rok.action('Speed', wheel_val(-v))
+	# lets use labels for short improvisation of async command (_future)
+	_e._sync('rok_visina')
 
 @_core.export_cmd
 @_core.do
 def lok_visina(v):
-	_e.servo_lok.action('GoalPosition', [537, 465, 211][v])
-
-@_core.export_cmd
-@_core.do
-def lfliper(v):
-	_e.servo_lfliper.action('GoalPosition', [682, 389, 239][v])
+	_e._reset_label('lok_visina')
+	_e._print('lok_visina', v)
+	_e.servo_lok.action('Speed', wheel_val(v))
+	# lets use labels for short improvisation of async command (_future)
+	_e._sync('lok_visina')
 
 @_core.export_cmd
 @_core.do
 def rfliper(v):
-	_e.servo_rfliper.action('GoalPosition', [251, 549, 703][v])
+	# _e.servo_rfliper.action('GoalPosition', [20,289,424][v])
+#return
+	_e.servo_rfliper.action('GoalPosition', [880,700,575][v])
+
+@_core.export_cmd
+@_core.do
+def lfliper(v):
+	# _e.servo_lfliper.action('GoalPosition', [921,606,504][v])
+#return
+	_e.servo_lfliper.action('GoalPosition', [212,410,500][v])
 #################################################
 
 
@@ -183,37 +262,27 @@ def start_remotely():
 ###################################
 
 ###### Experiment ########
-tcp_experiment = Tcp(name='experiment', ip='127.0.0.1', port=8000)
-pt = tcp_experiment.get_packet_stream()
-_core.add_module(tcp_experiment)
-@_core.export_cmd
-@_core.do
-def experiment(v):
-	pt.send(v.encode())
+# tcp_experiment = Tcp(name='experiment', ip='127.0.0.1', port=8000)
+# pt = tcp_experiment.get_packet_stream()
+# _core.add_module(tcp_experiment)
+# @_core.export_cmd
+# @_core.do
+# def experiment(v):
+	# pt.send(v.encode())
 ##########################
 
-@_core.do
-def init_servos():
-	servo_lok.action('Speed',200)
-	servo_rok.action('Speed', 200)
-	servo_lfliper.action('Speed', 200)
-	servo_rfliper.action('Speed', 200)
 
 def init_pids():
 	if not State.sim:
 		_e.r.conf_set('stuck_distance_max_fail_count',120)
-		_e.r.conf_set('stuck_rotation_max_fail_count',50)
+		_e.r.conf_set('stuck_rotation_max_fail_count',100)
 		_e.r.conf_set('stuck_rotation_jump',20)
 		_e.r.conf_set('stuck_distance_jump',50)
-		_e.r.conf_set('wheel_r1', 72.768)
-		_e.r.conf_set('wheel_r2', 72.11807159)
-		_e.r.conf_set('wheel_distance', 276.621)
-		_e.r.conf_set('pid_d_p', 3.0)
-		_e.r.conf_set('pid_d_d', 140.0)
-		_e.r.conf_set('pid_r_p', 3.0)
-		_e.r.conf_set('pid_d_i', 0.025)
-		_e.r.conf_set('pid_r_i', 0.025)
-		_e.r.conf_set('pid_r_d', 140.0)
+		_e.r.conf_set('wheel_r1', 63.1)
+		_e.r.conf_set('pid_r_p', 2.5)
+		_e.r.conf_set('pid_d_i', 0.0)
+		_e.r.conf_set('pid_r_i', 0.0)
+		_e.r.conf_set('pid_r_d', 200.0)
 		_e.r.conf_set('enable_stuck', 1)
 
 ###### ROBOT INITIAL TASK #######
@@ -227,10 +296,11 @@ def init_task():
 	
 	init_pids()
 	_e.r.send('R')
-	_e.r.conf_set('send_status_interval', 100)
+	_e.r.conf_set('send_status_interval', 0)
 	_e.r.speed(30)
 	_e.r.accel(500)
 	
 	_e.r.conf_set('alpha', 1000)
 	_e.chinch()
 	timer.start_timer()
+

@@ -5,7 +5,7 @@ def run():
 	activator = Activator('pin activator', packet_stream=_core.get_module('Can').get_packet_stream(addr))
 	_core.add_module(activator)
 #activator.export_cmds()
-	if State.sim:
+	if State.sim or State.get('dont_use_chinch'):
 		@_core.export_cmd
 		def check_chinch():
 			pass

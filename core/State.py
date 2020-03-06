@@ -5,10 +5,16 @@ class State:
 	sim=0
 	sensor_sim=0
 	recompile=0
+	known=set()
 
 	@staticmethod
 	def is_sim():
 		return _sim_mode != False
+
+	@staticmethod
+	def get(par):
+		State.known.add(par)
+		return par if hasattr(State, par) else None
 class StateBase:
 	def __init__(self, value=None, name=None):
 		self.name = name
