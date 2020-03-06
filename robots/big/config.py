@@ -137,7 +137,7 @@ def init_servos():
 def llift(v):
 	_e._reset_label('servo_llift')
 	_e._print('servo_llift', v)
-	_e.servo_llift.wheelspeed(-1023 if 1 else 1023)
+	_e.servo_llift.wheelspeed(-1023 if v==1 else 1023)
 	# lets use labels for short improvisation of async command (_future)
 	if not State.sim:
 		_e._sync('servo_llift')
@@ -147,7 +147,7 @@ def llift(v):
 def rlift(v):
 	_e._reset_label('servo_rlift')
 	_e._print('servo_rlift', v)
-	_e.servo_rlift.wheelspeed(1023 if 1 else -1023)
+	_e.servo_rlift.wheelspeed(1023 if v==1 else -1023)
 	# lets use labels for short improvisation of async command (_future)
 	if not State.sim:
 		_e._sync('servo_rlift')

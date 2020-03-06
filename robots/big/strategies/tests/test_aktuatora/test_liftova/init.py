@@ -11,3 +11,10 @@ def run():
 		llift(0)
 		rlift(0)
 	_sync()
+
+
+
+	with _parallel():
+		llift(1)
+		rlift(1)
+	_sync()
