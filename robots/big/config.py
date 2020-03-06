@@ -63,13 +63,13 @@ def pump(x, v):
 ################### SERVOS #######################
 servo_id = 0x80006c00
 spl = Splitter(can.get_packet_stream(servo_id))
-servo_lok  = Servo('servo_lok', servo_id=21, packet_stream=spl.get())
-servo_rok = Servo('servo_rok', servo_id=22, packet_stream=spl.get())
+servo_llift  = Servo('servo_llift', servo_id=21, packet_stream=spl.get())
+servo_rlift = Servo('servo_rlift', servo_id=22, packet_stream=spl.get())
 servo_lfliper = Servo('servo_lfliper', servo_id=25, packet_stream=spl.get())
 servo_rfliper = Servo('servo_rfliper', servo_id=2, packet_stream=spl.get()) 
 
 # export servo commands
-servos = [servo_lok, servo_rok, servo_lfliper, servo_rfliper]
+servos = [servo_llift, servo_rlift, servo_lfliper, servo_rfliper]
 for i in servos: i.export_cmds(i.name)
 _core.add_module(servos)
 
@@ -83,10 +83,6 @@ tcp_gpio = Tcp(name='gpio_communicator', ip='127.0.0.1', port=3500)
 gp = SimplePacket(2, tcp_gpio.get_packet_stream())
 _core.add_module(tcp_gpio)
 
-# natural (-1024,1024) => (0,2048) for servo
-def wheel_val(v):
-	return -v+1024 if v<0 else v
-
 # interrupt receiever
 def gpio_recv(c):
 	c=c.decode()
@@ -99,32 +95,32 @@ def gpio_recv(c):
 		if c in ('05','06'):
 			v = -v if c == '05' else v
 			# move back a little, to leave switch
-			_e.servo_lok.action('Speed',wheel_val(v))
+			_e.servo_llift.wheelspeed(v)
 			_e.sleep(0.15)
-			_e.servo_lok.action('Speed',wheel_val(0))
+			_e.servo_llift.wheelspeed(0)
 			# must use _do because _core.spawn is not in _e
 			@_e._do
 			def _():
 				# spawn label from "sidetask" into active task
 				@_core.spawn
 				def _():
-					_e._L('lok_visina')	
+					_e._L('servo_llift')	
 
 		# 13 left down, 19 left up
 		elif c in ('13','19'):
 			v = -v if c == '19' else v
 			# move back a little, to leave switch
-			_e.servo_rok.action('Speed',wheel_val(v))
+			_e.servo_rlift.wheelspeed(v)
 			_e.sleep(0.15)
-			_e.servo_rok.action('Speed',wheel_val(0))
+			_e.servo_rlift.wheelspeed(0)
 			# must use _do because _core.spawn is not in _e
 			@_e._do
 			def _():
 				# spawn label from "sidetask" into active task
 				@_core.spawn
 				def _():
-					_e._L('rok_visina')	
-		
+					_e._L('servo_rlift')
+					
 gp.recv = gpio_recv
 
 @_core.do
@@ -132,31 +128,29 @@ def init_servos():
 	servo_lfliper.action('Speed', 200)
 	servo_rfliper.action('Speed', 200)
 
-	# wheel mode
-	_e.servo_rok.action('CCWAngleLimit', 0)
-	_e.servo_rok.action('CWAngleLimit', 0)
-
-	# wheel mode
-	_e.servo_lok.action('CCWAngleLimit', 0)
-	_e.servo_lok.action('CWAngleLimit', 0)
+	# init wheel mode
+	_e.servo_llift.wheelspeed(0)
+	_e.servo_rlift.wheelspeed(0)
 
 @_core.export_cmd
 @_core.do
-def rok_visina(v):
-	_e._reset_label('rok_visina')
-	_e._print('rok_visina', v)
-	_e.servo_rok.action('Speed', wheel_val(-v))
+def llift(v):
+	_e._reset_label('servo_llift')
+	_e._print('servo_llift', v)
+	_e.servo_llift.wheelspeed(-1023 if 1 else 1023)
 	# lets use labels for short improvisation of async command (_future)
-	_e._sync('rok_visina')
-
+	if not State.sim:
+		_e._sync('servo_llift')
+	
 @_core.export_cmd
 @_core.do
-def lok_visina(v):
-	_e._reset_label('lok_visina')
-	_e._print('lok_visina', v)
-	_e.servo_lok.action('Speed', wheel_val(v))
+def rlift(v):
+	_e._reset_label('servo_rlift')
+	_e._print('servo_rlift', v)
+	_e.servo_rlift.wheelspeed(1023 if 1 else -1023)
 	# lets use labels for short improvisation of async command (_future)
-	_e._sync('lok_visina')
+	if not State.sim:
+		_e._sync('servo_rlift')
 
 @_core.export_cmd
 @_core.do
