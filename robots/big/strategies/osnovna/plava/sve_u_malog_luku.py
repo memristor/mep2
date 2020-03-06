@@ -12,12 +12,12 @@ def run():
 	rfliper(2)
 	if not pathfind(650,-700):
 		return False
-	sleep(5)
+	sleep(3)
 	#hvatanje
 	@_spawn
 	def _():	
 		rfliper(1)
-	rok_visina(0)
+	rlift(0)
 	pump(2, 1)
 	#provera zahvata
 #	p2 = sp_right.picked()
@@ -29,7 +29,7 @@ def run():
 #			print("Nije uhvatio -------------------------")
 #			return False
 	#podizanje
-	rok_visina(1)
+	rlift(1)
 	sleep(0.1)
 	r.absrot(180)
 #casa2
@@ -39,7 +39,6 @@ def run():
 		lfliper(2)
 	r.curve_rel(-400,90)
 	r.forward(170)
-	sleep(5)
 	lfliper(1)
 	@_spawn
 	def _():	

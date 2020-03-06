@@ -3,17 +3,18 @@ weight=10
 
 def run():
 	
-#	@_spawn
-#	def _():
-#		lfliper(2)
+	@_spawn
+	def _():
+		lfliper(2)
+	_sync()
 	r.forward(57)
 	r.curve_rel(-122, 52)
+	r.forward(20)
 
-	sleep(5)
 	#hvatanje
-#	lfliper(1)
-#	lok_visina(0)
-	pump(1, 1)
+	lfliper(1)
+	llift(0)	
+	pump(0, 1)
 	sleep(1)
 	#provera zahvata
 #	p1 = sp_left.picked()
@@ -24,7 +25,9 @@ def run():
 #		else:
 #			print("Nije uhvatio -------------------------")
 #			return False
-#	lok_visina(1)
+	llift(1)
+	sleep(1)
+	lfliper(0)
 
 	#aktivacija tornja
 	r.absrot(90)

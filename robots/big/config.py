@@ -277,10 +277,14 @@ def init_pids():
 		_e.r.conf_set('stuck_rotation_jump',20)
 		_e.r.conf_set('stuck_distance_jump',50)
 		_e.r.conf_set('wheel_r1', 63.1)
+		_e.r.conf_set('wheel_r2', 63.1)
+		_e.r.conf_set('wheel_distance', 254.3)
+		_e.r.conf_set('pid_d_p', 2.2)
+		_e.r.conf_set('pid_d_d', 180)
 		_e.r.conf_set('pid_r_p', 2.5)
+		_e.r.conf_set('pid_r_d', 200)
 		_e.r.conf_set('pid_d_i', 0.0)
 		_e.r.conf_set('pid_r_i', 0.0)
-		_e.r.conf_set('pid_r_d', 200.0)
 		_e.r.conf_set('enable_stuck', 1)
 
 ###### ROBOT INITIAL TASK #######

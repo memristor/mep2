@@ -16,15 +16,15 @@ def run():
 	_sync()
 	
 	with _parallel():
-		lok_visina(1023)
-		rok_visina(1023)
+		llift(0)
+		rlift(0)
 	_sync()
 
 	pump(0, 1)
 
 	with _parallel():
-		rok_visina(-1023)
-		lok_visina(-1023)
+		rlift(1)
+		llift(1)
 	_sync()
 
 	with _parallel():
@@ -50,8 +50,8 @@ def run():
 	r.forward(-200)
 
 	with _parallel():
-		lok_visina(1023)
-		rok_visina(1023)
+		llift(0)
+		rlift(0)
 	_sync()
 
 	pump(0, 0)
@@ -64,8 +64,8 @@ def run():
 	_sync()
 
 	with _parallel():
-		rok_visina(-1023)
-		lok_visina(-1023)
+		rlift(1)
+		llift(1)
 	_sync()
 
 	r.forward(-100)

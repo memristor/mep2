@@ -9,7 +9,7 @@ def run():
 
 	r.speed(150)
 
-#	rok_visina(1)
-#	lok_visina(1)
-#	lfliper(0)
-#	rfliper(0)
+	rlift(1)
+	llift(1)
+	lfliper(0)
+	rfliper(0)
