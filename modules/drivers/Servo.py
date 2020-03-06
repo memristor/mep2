@@ -40,11 +40,16 @@ class Servo:
 		self.servo_tries = 0
 		self.cur_action = None
 		self.future = None
+		self.wheel_mode = False
+		
 	def set_packet_stream(self,ps):
 		self.ps = ps
+		
 	def export_cmds(self, ns=''):
 		with _core.export_ns(ns):
 			_core.export_cmd('action', self.action)
+			_core.export_cmd('wheelspeed', self.wheelspeed)
+		self.namespace = ns
 
 	@_core.module_cmd
 	def action(self, f, val=None, poll=True, _sim=0):
@@ -91,7 +96,7 @@ class Servo:
 			data += [2] if pfmt == 'h' else [1]
 			
 		self.ps.send(struct.pack(fmt, *data))
-		print('data send', data)
+		# print('data send', data)
 		
 		if (State.sim and self.future) or (self.future and State.get('ignore_servo')):
 			self.future.set_result(1)
@@ -139,8 +144,16 @@ class Servo:
 				if self.future: self.future.set(1)
 				self.val = None
 				print('servo', self.name, 'finished')
-			
-		
+
+	@_core.do
+	def wheelspeed(self, speed):
+		ns = getattr(_e, self.namespace)
+		if not self.wheel_mode:
+			ns.action('CCWAngleLimit', 0)
+			ns.action('CWAngleLimit', 0)
+			self.wheel_mode = True
+		ns.action('Speed', speed if speed >= 0 else -speed+1024)
+	
 	def run(self):
 		# print('runnin')
 		self.ps.recv = self.recv
