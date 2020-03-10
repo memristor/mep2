@@ -82,19 +82,19 @@ tcp_gpio = Tcp(name='gpio_communicator', ip='127.0.0.1', port=3500)
 # simple packet with length of 2 bytes (to packetize tcp continual stream)
 gp = SimplePacket(2, tcp_gpio.get_packet_stream())
 _core.add_module(tcp_gpio)
-
+State.llift_active=0
+State.rlift_active=0
+State.lift_active_only=0
 # interrupt receiever
 def gpio_recv(c):
 	c1=c.decode()
-#print('c1',c1)
 	# spawn thread task independent
 	@_core.spawn_side
 	def _():
 		c=c1
 		v=800	
-#print(c)
 		# 05 = left down, 06 = left up
-		if c in ('05','06'):
+		if c in ('05','06') and ((not State.lift_active_only) or State.llift_active==1):
 			v = -v if c == '05' else v
 			# move back a little, to leave switch
 			_e.servo_llift.wheelspeed(v)
@@ -106,10 +106,12 @@ def gpio_recv(c):
 				# spawn label from "sidetask" into active task
 				@_core.spawn
 				def _():
-					_e._L('servo_llift')	
+					_e._L('servo_llift')
+					State.llift_active=0
+
 
 		# 13 left down, 19 left up
-		elif c in ('13','19'):
+		elif c in ('13','19') and ((not State.lift_active_only) or State.rlift_active==1):
 			v = -v if c == '19' else v
 			# move back a little, to leave switch
 			_e.servo_rlift.wheelspeed(v)
@@ -122,6 +124,7 @@ def gpio_recv(c):
 				@_core.spawn
 				def _():
 					_e._L('servo_rlift')
+					State.rlift_active=0
 					
 gp.recv = gpio_recv
 
@@ -147,6 +150,7 @@ def llift(v,timeout=2.0):
 	_e._reset_label('servo_llift')
 	_e._print('servo_llift', v)
 	_e.servo_llift.wheelspeed(-lift_speed if v==1 else lift_speed)
+	State.llift_active=1
 	# lets use labels for short improvisation of async command (_future)
 	if not State.sim:
 		_e._sync('servo_llift')
@@ -163,6 +167,7 @@ def rlift(v,timeout=2.0):
 	_e._reset_label('servo_rlift')
 	_e._print('servo_rlift', v)
 	_e.servo_rlift.wheelspeed(lift_speed if v==1 else -lift_speed)
+	State.rlift_active=2
 	# lets use labels for short improvisation of async command (_future)
 	if not State.sim:
 		_e._sync('servo_rlift')
