@@ -9,10 +9,23 @@ def run():
 		print('servo error', name)
 
 	a=lfliper(1)
+	
+	# jedan nacin provere
 	@_do
-	def _():
-		print('servo status',a.val.val)
+	def provera_uspeha_servoa():
+		if a.val:
+			print('servo ok')
+		else:
+			print('servo fail')
+			
+	
+	# drugi nacin provere
+	@_on('servo:error')
+	def check_servo(name):
+		if name == 'rfliper':
+			print('servo rfliper error')
 	rfliper(1)
+	
 
 	sleep(1)
 	_print("************** Zatvori rucice")

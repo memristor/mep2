@@ -1,6 +1,11 @@
 from .State import StateBase
 from core.Constants import *
 
+class FuturePending:
+	def __repr__(self):
+		return 'FuturePending'
+	pass
+
 class Future:
 	def __init__(self, thread=None):
 		self.result = StateBase(None)
@@ -34,7 +39,7 @@ class Future:
 			self.state.val = DONE
 		
 	def get_result(self):
-		return self.result.val
+		return (self.result.val if self.done() else FuturePending()) if type(self.result.val) != Future else self.result.val.val
 		
 	# get <=> get_result, set <=> set_result aliases
 	get = get_result

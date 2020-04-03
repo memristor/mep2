@@ -24,6 +24,7 @@ class Core:
 		from .Introspection import Introspection
 		from .TaskManager import TaskManager
 		from .Logger import Logger
+		from .Future import FuturePending
 		
 		self.service_manager = ServiceManager()
 		self.sensors = Sensors()
@@ -47,6 +48,7 @@ class Core:
 		self.robot_size = [300,300]
 		
 		setattr(builtins, '_e', self.task_manager.exports)
+		setattr(builtins, 'FuturePending', FuturePending)
 		
 		# forward funcs from task_manager for convenience
 		self.set_task_setup_func = self.task_manager.set_task_setup_func
@@ -90,6 +92,11 @@ class Core:
 		core.Task.StateBase = StateBase
 	
 	
+		# make useful util funcs global
+		setattr(builtins, 'polygon_from_rect', polygon_from_rect)
+		setattr(builtins, 'polygon_square_around_point', polygon_square_around_point)
+		setattr(builtins, 'rect_around_point', rect_around_point)
+		setattr(builtins, 'point_distance', point_distance)
 	
 	
 	def quit(self):
@@ -215,6 +222,21 @@ class Core:
 				_future.on_cancel.append(c.cancel)
 		
 		from contextlib import contextmanager
+		
+		@_core.export_cmd
+		@_core.do
+		def add_entity(ent_type, name, polygon):
+			_core.entities.add_entity(ent_type, name, polygon)
+		
+		@_core.export_cmd
+		@_core.do
+		def disable_entity(name):
+			_core.entities.disable_entity(name)
+		
+		@_core.export_cmd
+		@_core.do
+		def enable_entity(name):
+			_core.entities.enable_entity(name)
 		
 		@_core.export_cmd
 		@_core.do

@@ -97,7 +97,13 @@ class Command(CommandList):
 	def __repr__(s):
 		return str(s.name)
 
+last_future = None
+
+def future():
+	return last_future
+
 def gen_cmd(name, *args, **kwargs):
+	global last_future
 	if type(name) is not tuple: name = ('', name)
 	cmd = Command(name)
 	cmd.kwargs = dict(kwargs)
@@ -109,7 +115,7 @@ def gen_cmd(name, *args, **kwargs):
 	future = Future()
 	future.cmd = cmd
 	cmd.future = future
-	
+	last_future=future
 	CommandList.get().add_cmd(cmd)
 	return future
 	
@@ -235,6 +241,7 @@ _parallel = BlockParallel()
 meta_funcs = {
 	CMD_LABEL: _label,
 	'_L': _label,
+	'future': future,
 	CMD_IF: _if._if,
 	CMD_ELIF: _if._elif,
 	CMD_ELSE: _if._else,

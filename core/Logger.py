@@ -50,11 +50,11 @@ class Logger:
 			#self.f.write(('{ "type":"%s", "time":%.4f, "content":' % (_type,t)) +m + ' },\n')
 			self.f.write(json.dumps(j) + ',\n')
 			# self.f.write('sending' + str(j)+'\n')
+			_core.introspection.send_log(j)
 		except:
-			pass
+			print('Warning: failed to JSON-ize string')
 		if _type == 'terminal':
 			print2(*msg)
-		_core.introspection.send_log(j)
 	
 	def close(self):
 		self.f.write('{ "type":"end" }]')

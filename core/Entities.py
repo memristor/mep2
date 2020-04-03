@@ -25,21 +25,22 @@ class Entities:
 		self.time = time.time()
 		self.last_id = 0
 		self.disabled_entities = []
+	
 	def update_entity(self, entity_type, entity_name, polygon, point=None, duration=0):
 		ent=self.get_entity_by_name(entity_name)
 		if not ent:
 			self.add_entity( entity_type, entity_name, polygon, point, duration )
 		else:
-			# print('refreshing ent', ent.name, ent.point)
 			ent.refresh( polygon, point )
-			
+		
 	def disable_entity(self, entity_name):
 		ent=self.get_entity_by_name(entity_name)
 		if ent:
 			self.entities.remove(ent)
 			self.disabled_entities.append(ent)
 			print('disabling entity', entity_name, ent)
-			_core.emit('entity:remove', ent)
+			_core.emit('entity:disable', ent)
+			# _core.emit('entity:remove', ent)
 		
 	def enable_entity(self, entity_name):
 		ent = next((i for i in self.disabled_entities if i.name == entity_name), None)

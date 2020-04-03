@@ -191,8 +191,8 @@ class Thread(CommandList):
 		if s.future and not s.future.cancelled(): 
 			s.future.cancel()
 			cmd = s.get_current_command()
-			if not hasattr(cmd, 'func_interfaces'):
-				print(cmd.name, 'has no func_interfaces')
+			# if not hasattr(cmd, 'func_interfaces'):
+				# print(cmd.name, 'has no func_interfaces')
 			if cmd.is_async_command():
 				func, cmd.func_interfaces = Task.exported_cmds[cmd.name]
 			# print(cmd.name)
@@ -577,6 +577,7 @@ class Task:
 				
 				if not cmd.commands:
 					r.inc_ip()
+					cmd.future.set(cmd.ret)
 					return
 					
 				rn = s.add_thread(Thread(cmd, sim_time=r.sim_time.val, 
@@ -955,7 +956,7 @@ class Task:
 		if ref:
 			r=s.get_ref(ref)
 			if not r: raise Exception('_return ref= reference not found')
-		if r.future: r.future.set_result(cmd.args[0] if cmd.args else 1)
+		if r.cmd.future: r.cmd.future.set_result(cmd.args[0] if cmd.args else 1)
 		r.state.set(DONE)
 		r.run_on_done()
 	
