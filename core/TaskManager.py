@@ -146,8 +146,7 @@ class TaskManager:
 		def sidetask():
 			_e._sync(1)
 		self.side_task=self.add_task_func('sidetask',sidetask)
-		self.set_task('sidetask')
-		self.tasks.remove(self.side_task)
+		self.run_sidetask()
 		task = next((t for t in self.tasks if t.name == 'init'), None)
 		if not task:
 			def run_this(): pass
@@ -204,6 +203,20 @@ class TaskManager:
 			return self.current_task
 		else:
 			return False
+	
+	def run_sidetask(self):
+		task = self.side_task
+		def run_this():
+			# run default func
+			_core.emit('task:new', task.name)
+			self.expose_task_commands(task.module)
+			if task.module.run() is False: return False
+			print('running task', col.yellow, task.name, col.white)
+			
+		def on_task_done():
+			return task
+		ret = task.run_task(run_this, on_task_done)
+		return task
 
 	def clear_tasks(self):
 		self.tasks.clear()

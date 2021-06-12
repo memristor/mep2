@@ -31,10 +31,13 @@ servo_commands = {
 }
 import struct
 from core.Convert import l16
+import asyncio
+
 class Servo:
-	def __init__(self, name, servo_id, packet_stream=None):
+	def __init__(self, name, servo_id, packet_stream=None, raw_packet=False):
 		self.name = name
 		self.servo_id = servo_id
+		self.raw_packet = raw_packet
 		self.ps = packet_stream
 		self.prev_val = 0
 		self.servo_tries = 0
@@ -89,16 +92,33 @@ class Servo:
 
 		#  if addr == None:
 			#  addr = 0x7f00 if type(which) is int or servo[0] == 'ax' else 0x7f01
-		fmt = '4B'+servo_fmt
 		data = [servo_id, servo_len, servo_rw, servo_func]
 		if val != None:
-			data += [val]
+			if servo_fmt == 'h':
+				servo_fmt = '2B'
+				data += [val & 0xff, val >> 8]
+			else:
+				servo_fmt = 'B'
+				data += [val]
 			self.val = val
 		else:
 			data += [2] if pfmt == 'h' else [1]
+		fmt = '4B' + servo_fmt
 			
-		self.ps.send(struct.pack(fmt, *data))
-		# print('data send', data)
+		if self.raw_packet:
+			fmt = '2B' + fmt + '1B'
+			data = [0xff,0xff] + data + [self.crc(data)]
+		
+		to_send = struct.pack(fmt, *data)
+
+		# async def send_func():
+		# 	for j in range(3):
+		# 		print('sending ', to_send)
+		# 		await asyncio.sleep(0.7)
+		# 		self.ps.send(to_send)
+		# asyncio.ensure_future(send_func(), loop=_core.loop)
+		self.ps.send(to_send)
+		print('Servo send', data, to_send)
 		
 		if (State.sim and self.future) or (self.future and State.get('ignore_servo')):
 			self.future.set_result(1)
@@ -119,6 +139,12 @@ class Servo:
 			_core.loop.call_later(0.1, self.poll_status)
 		
 		
+	def crc(self, a):
+		c = 0
+		for i in range(len(a)):
+			c += a[i]
+		return 0xff - (c & 0xff)
+
 	def recv(self, data):
 		if self.cur_action != 'PresentPosition' or not self.val or len(data) < 5:
 			return

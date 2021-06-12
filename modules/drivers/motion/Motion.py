@@ -332,8 +332,8 @@ class Motion:
 		else:
 			return ret
 		if a and not _sim:
-			self.conf_set('accel', a, _sim)
-			self.conf_set('alpha', a, _sim)
+			self.conf_set('accel', a)
+			self.conf_set('alpha', a)
 	
 	@_core.module_cmd
 	def diff_drive(self,x,y,alpha, dir=1):
@@ -425,7 +425,7 @@ class Motion:
 	
 	@_core.module_cmd
 	def softstop(self):
-		if _core.cur_state == 'I':
+		if self.cur_state == 'I':
 			self.future.set(0)
 		else:
 			self.print_cmd('softstop')
