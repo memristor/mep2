@@ -58,7 +58,7 @@ class Motion:
 		self.cur_state = 'I'
 		self.stuckpos_tol_dist = 80
 		self.stuckpos_tol_orient = 15
-		
+		self.flipped = State.get('flipped')
 		self.setting_position = 0
 		self.setting_position_point = [0,0,0]
 		
@@ -150,7 +150,7 @@ class Motion:
 			# self.state_rep = 0
 			if status == 'I':
 				_core.emit('motion:idle')
-				if prev in 'MR': self.resolve(True)
+				if prev in 'MRE': self.resolve(True)
 			elif status == 'S':
 				_core.emit('motion:stuck')
 			elif status == 'E':
@@ -395,7 +395,6 @@ class Motion:
 		self.print_cmd('moving to',x,y,o)
 		x,y=int(x),int(y)
 		self.point = [x,y]
-		# self.intr()
 		self.move_cmd(x,y,r,o)
 
 	@_core.module_cmd
@@ -438,6 +437,8 @@ class Motion:
 	
 	@_core.module_cmd
 	def absrot(self, a, _sim=0):
+		if self.flipped:
+				a = 360-a
 		if _sim:
 			o = normalize_orient(a-_core.get_position()[2])
 			return self.turn(o,_sim)
@@ -447,6 +448,9 @@ class Motion:
 	
 	@_core.module_cmd
 	def curve(self, x,y,alpha,dir=1, _sim=0, _pause=0):
+		if self.flipped:
+			alpha = -alpha
+			y = -y
 		if _sim:
 			r = int( _core.distance_to([x,y]) )
 			t = 0
@@ -490,7 +494,8 @@ class Motion:
 	
 	@_core.module_cmd
 	def curve_rel(self, r, angle, dir=1, _sim=0, _pause=0):
-		
+		if self.flipped:
+				angle = -angle
 		if _sim:
 			c_vmax=self._speed.val/256 * 1000
 			c_omega = c_vmax
@@ -535,7 +540,8 @@ class Motion:
 	
 	@_core.module_cmd
 	def turn(self, o, _sim=0, _pause=0):
-		
+		if self.flipped:
+				o = -o
 		if _sim:
 			if o == 0: return 0
 			# Fi is not really angle here, but distance to travel, as circumference
@@ -600,6 +606,8 @@ class Motion:
 		
 	
 	def stuckpos(self, forw=1, x=None,y=None,o=None,check=False, _sim=0):
+		if self.flipped:
+			y = -y
 		m = getattr(_e, self.namespace)
 		@_e._do
 		def _():
