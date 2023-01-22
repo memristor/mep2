@@ -415,7 +415,7 @@ class Task:
 	
 	def run_simulator(s, thread=None, max_sim_time=0, max_cpu_clock=0):
 		import time
-		time_start=time.clock()
+		time_start=time.time()
 		if not thread: thread = s.main_branch
 		with s.simulator():
 			# import core.State as State

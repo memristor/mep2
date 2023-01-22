@@ -38,8 +38,8 @@ class StateBase:
 	
 	val = property(get, set)
 	
-	def inc(self):
-		self.set(self.get()+1)
+	def inc(self, const=1):
+		self.set(self.get()+const)
 	
 	# list operations
 	def append(self, value):
@@ -98,7 +98,7 @@ class _State:
 		return self.inst.val
 
 	@_core.do
-	def inc(self):
+	def inc(self, const=1):
 		old = self.inst.get()
-		_core.emit('state:change', self, old, old+1)
-		return self.inst.inc()
+		_core.emit('state:change', self, old, old+const)
+		return self.inst.inc(const)

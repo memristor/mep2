@@ -144,7 +144,8 @@ class TaskManager:
 	
 	def setup_init_task(self):
 		def sidetask():
-			_e._sync(1)
+			# _e._sync(1)
+			pass
 		self.side_task=self.add_task_func('sidetask',sidetask)
 		self.run_sidetask()
 		task = next((t for t in self.tasks if t.name == 'init'), None)
