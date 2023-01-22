@@ -1,8 +1,9 @@
 def run():
 	State.strat_counter = 0
 	
+	# test_sim_future
 	strategy_list=['run_tests', 'test_if_while', 'test_listener', 'test_scope',
-		'test_sync/sync', 'test_sync/sync_simple', 'test_simulator2', 'test_sync/sync_label']
+		'test_sync/sync', 'test_sync/sync_simple', 'test_simulator2', 'test_sync/sync_label', 'test_with_timeout']
 	
 	@_core.listen('strategy:done')
 	def next_strategy_pls():

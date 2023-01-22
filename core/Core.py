@@ -285,6 +285,28 @@ class Core:
 			yield
 			_e._goto(l)
 			_e._L(l2)
+		
+		@_core.export_cmd
+		@contextmanager
+		def _timeout(timeout, handler=None):
+			l = '__lab_timeout'+str(_core.unique_num())
+			l_skip = l+'skip'
+			l_handler = l+'handler'
+			_e._L(l)
+			fut=_e._ref()
+			# TODO: start timer here (and jump to l2 label if timeout)
+			@_e._spawn(_name='timeout_task')
+			def _():
+				_e.sleep(timeout)
+				_e._print(f'command timed out after {timeout}s')
+				_e._goto(l_handler, ref=fut)
+			yield
+			_e._return(ref='timeout_task')	
+			_e._goto(l_skip)
+			_e._L(l_handler)
+			if handler:
+				handler()
+			_e._L(l_skip)
 			
 		@_core.export_cmd
 		@_core.do
