@@ -117,7 +117,8 @@ class Servo:
 		# 		await asyncio.sleep(0.7)
 		# 		self.ps.send(to_send)
 		# asyncio.ensure_future(send_func(), loop=_core.loop)
-		self.ps.send(to_send)
+		if not State.get('ignore_servo'):
+			self.ps.send(to_send)
 		print('Servo send', data, to_send)
 		
 		if (State.sim and self.future) or (self.future and State.get('ignore_servo')):

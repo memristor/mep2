@@ -7,6 +7,7 @@ async def timer_task():
 	while State.time < end_time:
 		await asyncio.sleep(1)
 		State.time+=1
+		_core.emit('time',State.time)
 		print('time', State.time)
 		if not _core.task_manager.current_task:
 			print('no more tasks')

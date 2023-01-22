@@ -1,7 +1,7 @@
 from core.Convert import *
 import time, asyncio
 if not State.sim:
-	import modules.sensors.tofsensor.VL53L0X as VL53L0X
+	import modules.sensors.tofsensor_lib.VL53L0X as VL53L0X
 
 class TOFSensor:
 	def __init__(self, name='TOFSensor', packet_stream=None):
